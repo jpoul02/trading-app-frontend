@@ -113,6 +113,9 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
     >
       {/* Logo */}
       <div style={{ padding: "20px 18px 16px", borderBottom: `1px solid ${BORDER}` }}>
+        <p style={{ fontSize: 9, fontWeight: 700, color: "#00d4aa", letterSpacing: "0.2em", textTransform: "uppercase" as const, marginBottom: 8 }}>
+          JOTAPOL
+        </p>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
           <Logo />
           <div>
@@ -167,6 +170,14 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
           );
         })}
       </nav>
+
+      {/* Copyright */}
+      <div style={{ padding: "8px 12px", textAlign: "center" as const }}>
+        <p style={{ fontSize: 10, color: MUTED, lineHeight: 1.5 }}>
+          © 2026 JOTAPOL<br />
+          Todos los derechos reservados
+        </p>
+      </div>
 
       {/* Bottom — market activity */}
       <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${BORDER}` }}>
