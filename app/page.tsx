@@ -905,40 +905,35 @@ export default function DashboardPage() {
               onClick={e => e.stopPropagation()}
               style={{ ...TERM, padding: 28, width: 340, maxWidth: "90vw" }}
             >
-              <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, marginBottom: 20, letterSpacing: "0.06em" }}>NUEVA ALERTA DE PRECIO</p>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>SÍMBOLO</label>
-                <select
-                  value={newAlertSymbol}
-                  onChange={e => setNewAlertSymbol(e.target.value)}
-                  style={{ width: "100%", padding: "8px 10px", background: CARD2, border: `1px solid ${BORDER}`, color: TEXT, fontSize: 12, fontFamily: "inherit", borderRadius: 0, outline: "none" }}
-                >
-                  {["BTC", "ETH", "SOL", "BNB", "ADA", "XRP", "DOGE", "SPY", "QQQ", "VTI"].map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, letterSpacing: "0.06em" }}>NUEVA ALERTA DE PRECIO</p>
+                <button
+                  onClick={() => setShowAlertModal(false)}
+                  style={{ background: "transparent", border: "none", color: MUTED, cursor: "pointer", fontSize: 20, padding: "0 2px", lineHeight: 1, fontFamily: "inherit" }}
+                >×</button>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>CONDICIÓN</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {(["above", "below"] as const).map(cond => (
-                    <button
-                      key={cond}
-                      onClick={() => setNewAlertCondition(cond)}
-                      style={{
-                        flex: 1, padding: "8px 0", fontSize: 11, fontWeight: 600, fontFamily: "inherit",
-                        cursor: "pointer", borderRadius: 0,
-                        background: newAlertCondition === cond ? `${GREEN}15` : CARD2,
-                        border: `1px solid ${newAlertCondition === cond ? GREEN : BORDER}`,
-                        color: newAlertCondition === cond ? GREEN : MUTED,
-                      }}
-                    >
-                      {cond === "above" ? "↑ Cuando suba de" : "↓ Cuando baje de"}
-                    </button>
-                  ))}
-                </div>
+                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>SÍMBOLO</label>
+                <input
+                  type="text"
+                  value={newAlertSymbol}
+                  onChange={e => setNewAlertSymbol(e.target.value.toUpperCase())}
+                  placeholder="ej. BTC"
+                  style={{ width: "100%", padding: "8px 10px", background: CARD2, border: `1px solid ${BORDER}`, color: TEXT, fontSize: 12, fontFamily: "inherit", borderRadius: 0, outline: "none", boxSizing: "border-box" as const }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>DIRECCIÓN</label>
+                <select
+                  value={newAlertCondition}
+                  onChange={e => setNewAlertCondition(e.target.value as 'above' | 'below')}
+                  style={{ width: "100%", padding: "8px 10px", background: CARD2, border: `1px solid ${BORDER}`, color: TEXT, fontSize: 12, fontFamily: "inherit", borderRadius: 0, outline: "none" }}
+                >
+                  <option value="above">↑ Sube a</option>
+                  <option value="below">↓ Baja a</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: 22 }}>
@@ -970,7 +965,7 @@ export default function DashboardPage() {
                     opacity: (!newAlertPrice || parseFloat(newAlertPrice) <= 0) ? 0.4 : 1,
                   }}
                 >
-                  Crear alerta
+                  Agregar alerta
                 </button>
               </div>
             </motion.div>
