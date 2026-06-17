@@ -179,22 +179,26 @@ function CandleChart({ candles }: { candles: Candle[] }) {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 350 }}>
+      {/* Grid lines — use style={} so CSS vars resolve */}
       {yTicks.map((p, i) => (
         <g key={i}>
           <line
             x1={PAD.left} y1={toY(p)}
             x2={W - PAD.right} y2={toY(p)}
-            stroke="var(--border)" strokeWidth={0.5} strokeDasharray="4 4"
+            style={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
+            strokeWidth={0.5}
           />
           <text
             x={PAD.left - 6} y={toY(p) + 4}
-            fontSize={9} textAnchor="end" fill="var(--text-muted)"
+            fontSize={9} textAnchor="end"
+            style={{ fill: "var(--text-muted)" }}
           >
             {p.toFixed(priceDec)}
           </text>
         </g>
       ))}
 
+      {/* Candles */}
       {candles.map((c, i) => {
         const isGreen = c.close >= c.open;
         const color = isGreen ? "var(--green)" : "var(--red)";
@@ -207,16 +211,21 @@ function CandleChart({ candles }: { candles: Candle[] }) {
         const bodyH = Math.max(1, Math.abs(closeY - openY));
         return (
           <g key={c.time}>
-            <line x1={centerX} y1={highY} x2={centerX} y2={lowY} stroke={color} strokeWidth={1} />
+            <line
+              x1={centerX} y1={highY} x2={centerX} y2={lowY}
+              style={{ stroke: color }}
+              strokeWidth={1}
+            />
             <rect
               x={centerX - candleW / 2} y={bodyTop}
               width={candleW} height={bodyH}
-              fill={color}
+              style={{ fill: color }}
             />
           </g>
         );
       })}
 
+      {/* X axis date labels */}
       {candles
         .filter((_, i) => i % xStep === 0)
         .map((c, idx) => {
@@ -225,7 +234,11 @@ function CandleChart({ candles }: { candles: Candle[] }) {
           const d = new Date(c.time * 1000);
           const label = d.toLocaleDateString("es-ES", { month: "short", day: "2-digit" });
           return (
-            <text key={c.time} x={x} y={H - 6} fontSize={9} textAnchor="middle" fill="var(--text-muted)">
+            <text
+              key={c.time} x={x} y={H - 6}
+              fontSize={9} textAnchor="middle"
+              style={{ fill: "var(--text-muted)" }}
+            >
               {label}
             </text>
           );
