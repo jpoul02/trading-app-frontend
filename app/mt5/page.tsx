@@ -295,6 +295,15 @@ export default function MT5Page() {
   const [indicators, setIndicators] = useState<IndicatorData | null>(null);
   const [indicatorsLoading, setIndicatorsLoading] = useState(false);
   const [indicatorAccordion, setIndicatorAccordion] = useState<string | null>(null);
+  const [orderSymbol, setOrderSymbol] = useState("EURUSD");
+  const [orderVolume, setOrderVolume] = useState(0.01);
+  const [orderSL, setOrderSL] = useState("");
+  const [orderTP, setOrderTP] = useState("");
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [orderResult, setOrderResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [orderPrice, setOrderPrice] = useState<MT5Price | null>(null);
+  const [orderPriceLoading, setOrderPriceLoading] = useState(false);
+  const [closeLoadingTicket, setCloseLoadingTicket] = useState<number | null>(null);
 
   async function fetchStatus(silent = false) {
     try {
@@ -340,6 +349,69 @@ export default function MT5Page() {
     }
   }
 
+  async function fetchOrderPrice(sym: string) {
+    if (!sym.trim()) return;
+    setOrderPriceLoading(true);
+    setOrderPrice(null);
+    try {
+      const { data } = await api.get(`/api/mt5/price/${sym.trim().toUpperCase()}`);
+      setOrderPrice(data);
+    } catch {
+      setOrderPrice(null);
+    } finally {
+      setOrderPriceLoading(false);
+    }
+  }
+
+  async function sendOrder(action: "buy" | "sell") {
+    const sym = orderSymbol.trim().toUpperCase();
+    const confirmed = window.confirm(
+      `¿Seguro que querés ejecutar esta orden de ${action.toUpperCase()} en ${sym} con ${orderVolume} lotes? (Cuenta DEMO)`
+    );
+    if (!confirmed) return;
+    setOrderLoading(true);
+    setOrderResult(null);
+    try {
+      const { data } = await api.post("/api/mt5/order", {
+        symbol: sym,
+        action,
+        volume: orderVolume,
+        ...(orderSL && parseFloat(orderSL) > 0 ? { sl: parseFloat(orderSL) } : {}),
+        ...(orderTP && parseFloat(orderTP) > 0 ? { tp: parseFloat(orderTP) } : {}),
+      });
+      if (data.success) {
+        setOrderResult({ success: true, message: `Orden #${data.order} ejecutada a ${data.price}` });
+        fetchPositions();
+      } else {
+        setOrderResult({ success: false, message: data.error ?? "Error desconocido" });
+      }
+    } catch {
+      setOrderResult({ success: false, message: "Error de red al enviar la orden" });
+    } finally {
+      setOrderLoading(false);
+    }
+  }
+
+  async function closePosition(ticket: number, symbol: string) {
+    const confirmed = window.confirm(
+      `¿Cerrar la posición #${ticket} (${symbol})? (Cuenta DEMO)`
+    );
+    if (!confirmed) return;
+    setCloseLoadingTicket(ticket);
+    try {
+      const { data } = await api.post(`/api/mt5/close/${ticket}`);
+      if (data.success) {
+        fetchPositions();
+      } else {
+        alert(`Error al cerrar: ${data.error}`);
+      }
+    } catch {
+      alert("Error de red al cerrar la posición");
+    } finally {
+      setCloseLoadingTicket(null);
+    }
+  }
+
   async function fetchPrice() {
     const sym = symbolInput.trim().toUpperCase();
     if (!sym) return;
@@ -354,6 +426,11 @@ export default function MT5Page() {
       setPriceLoading(false);
     }
   }
+
+  useEffect(() => {
+    fetchOrderPrice(orderSymbol);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderSymbol]);
 
   useEffect(() => {
     fetchStatus();
@@ -1063,6 +1140,205 @@ export default function MT5Page() {
         </div>
       </section>
 
+      {/* ── Order panel ────────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <div
+          className="rounded-xl p-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-5">
+            <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+              Ejecutar Orden
+            </h2>
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(255,165,0,0.18)", border: "1px solid rgba(255,165,0,0.45)", color: "#f5a623" }}
+            >
+              DEMO
+            </span>
+          </div>
+
+          {/* Row 1 — Symbol + price */}
+          <div className="flex gap-3 mb-4 items-end">
+            <div className="flex-1">
+              <label className="block text-xs mb-1.5 font-semibold" style={{ color: "var(--text-muted)" }}>
+                Símbolo
+              </label>
+              <input
+                value={orderSymbol}
+                onChange={(e) => setOrderSymbol(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 rounded-lg text-sm font-semibold tracking-wider outline-none"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+            <div
+              className="rounded-lg px-4 py-2 text-right min-w-32 shrink-0"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+            >
+              {orderPriceLoading ? (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Cargando…</p>
+              ) : orderPrice && !orderPrice.error ? (
+                <>
+                  <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>BID / ASK</p>
+                  <p className="text-sm font-bold tabular-nums" style={{ color: "var(--green)" }}>
+                    {orderPrice.bid?.toFixed(orderPrice.digits ?? 5)}
+                    {" / "}
+                    <span style={{ color: "var(--red)" }}>{orderPrice.ask?.toFixed(orderPrice.digits ?? 5)}</span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Sin precio</p>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2 — Volume */}
+          <div className="mb-4">
+            <label className="block text-xs mb-1.5 font-semibold" style={{ color: "var(--text-muted)" }}>
+              Volumen (lotes)
+            </label>
+            <input
+              type="number"
+              min={0.01}
+              step={0.01}
+              value={orderVolume}
+              onChange={(e) => setOrderVolume(parseFloat(e.target.value) || 0.01)}
+              className="w-full px-3 py-2 rounded-lg text-sm font-semibold outline-none"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }}
+            />
+            <p className="text-xs mt-1.5" style={{ color: "var(--text-muted)" }}>
+              0.01 lote = 1,000 unidades · 0.1 (mini) = 10,000 · 1.0 (estándar) = 100,000
+              {status?.leverage ? ` · Con leverage 1:${status.leverage} controlás ${(orderVolume * 100_000 / status.leverage).toLocaleString("en-US", { maximumFractionDigits: 0 })} USD de margen` : ""}
+            </p>
+          </div>
+
+          {/* Row 3 — SL + TP */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div>
+              <label className="block text-xs mb-1.5 font-semibold" style={{ color: "var(--text-muted)" }}>
+                Stop Loss <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={orderSL}
+                onChange={(e) => setOrderSL(e.target.value)}
+                placeholder={orderPrice?.bid ? (orderPrice.bid * 0.999).toFixed(orderPrice.digits ?? 5) : "0.00000"}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5 font-semibold" style={{ color: "var(--text-muted)" }}>
+                Take Profit <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={orderTP}
+                onChange={(e) => setOrderTP(e.target.value)}
+                placeholder={orderPrice?.ask ? (orderPrice.ask * 1.001).toFixed(orderPrice.digits ?? 5) : "0.00000"}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Row 4 — BUY / SELL buttons */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => sendOrder("buy")}
+              disabled={orderLoading || !connected}
+              className="py-4 rounded-xl text-base font-black cursor-pointer disabled:opacity-40 transition-opacity"
+              style={{ background: "#00d4aa", color: "#0a1628" }}
+            >
+              {orderLoading ? "…" : `BUY ${orderSymbol}`}
+            </button>
+            <button
+              onClick={() => sendOrder("sell")}
+              disabled={orderLoading || !connected}
+              className="py-4 rounded-xl text-base font-black cursor-pointer disabled:opacity-40 transition-opacity"
+              style={{ background: "#ff4757", color: "#fff" }}
+            >
+              {orderLoading ? "…" : `SELL ${orderSymbol}`}
+            </button>
+          </div>
+
+          {/* Order result */}
+          {orderResult && (
+            <div
+              className="rounded-xl px-4 py-3 mb-4 text-sm font-semibold flex items-center justify-between"
+              style={{
+                background: orderResult.success ? "rgba(0,212,170,0.1)" : "rgba(255,71,87,0.1)",
+                border: `1px solid ${orderResult.success ? "rgba(0,212,170,0.4)" : "rgba(255,71,87,0.4)"}`,
+                color: orderResult.success ? "var(--green)" : "var(--red)",
+              }}
+            >
+              <span>{orderResult.success ? "✓ " : "✗ "}{orderResult.message}</span>
+              <button
+                onClick={() => setOrderResult(null)}
+                className="ml-3 shrink-0 text-xs opacity-60 hover:opacity-100 cursor-pointer"
+                style={{ background: "none", border: "none", color: "inherit" }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Educational mini-section */}
+          <div
+            className="rounded-xl p-4 text-xs leading-relaxed"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div>
+                <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Lotes</p>
+                <p style={{ color: "var(--text-muted)" }}>
+                  0.01 = micro (1k unidades)<br />
+                  0.1 = mini (10k unidades)<br />
+                  1.0 = estándar (100k unidades)
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Stop Loss</p>
+                <p style={{ color: "var(--text-muted)" }}>
+                  Precio donde MT5 cierra automáticamente si el mercado va en tu contra. Protege tu cuenta.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Take Profit</p>
+                <p style={{ color: "var(--text-muted)" }}>
+                  Cierra automáticamente cuando alcanzás tu ganancia objetivo. Sin TP tenés que cerrar manual.
+                </p>
+              </div>
+            </div>
+            <div
+              className="rounded-lg px-3 py-2 text-xs font-semibold"
+              style={{ background: "rgba(255,165,0,0.1)", border: "1px solid rgba(255,165,0,0.3)", color: "#f5a623" }}
+            >
+              ⚠️ Esta es tu cuenta DEMO — operás con dinero virtual. Practicá antes de usar dinero real.
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Open positions ──────────────────────────────────────────────── */}
       <section className="mb-8">
         <div className="flex items-center gap-3 mb-4">
@@ -1097,7 +1373,7 @@ export default function MT5Page() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Símbolo", "Tipo", "Volumen", "Entrada", "Actual", "Profit / Loss"].map((h) => (
+                  {["Símbolo", "Tipo", "Volumen", "Entrada", "Actual", "Profit / Loss", ""].map((h) => (
                     <th key={h} className="text-left px-4 py-3" style={{ color: "var(--text-muted)" }}>
                       {h}
                     </th>
@@ -1138,6 +1414,16 @@ export default function MT5Page() {
                       style={{ color: p.profit >= 0 ? "var(--green)" : "var(--red)" }}
                     >
                       {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => closePosition(p.ticket, p.symbol)}
+                        disabled={closeLoadingTicket === p.ticket}
+                        className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-opacity"
+                        style={{ background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.4)", color: "var(--red)" }}
+                      >
+                        {closeLoadingTicket === p.ticket ? "…" : "Cerrar"}
+                      </button>
                     </td>
                   </tr>
                 ))}
