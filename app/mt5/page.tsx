@@ -50,6 +50,15 @@ interface MT5Price {
   digits?: number;
 }
 
+interface Candle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 // ─── Static content ───────────────────────────────────────────────────────────
 
 const GLOSSARY = [
@@ -133,6 +142,98 @@ const FOREX_CONCEPTS = [
   },
 ];
 
+// ─── Candle chart (SVG) ───────────────────────────────────────────────────────
+
+const CHART_TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
+
+function CandleChart({ candles }: { candles: Candle[] }) {
+  if (candles.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center"
+        style={{ height: 350, color: "var(--text-muted)" }}
+      >
+        <p className="text-sm">Sin datos — seleccioná un símbolo y timeframe</p>
+      </div>
+    );
+  }
+
+  const W = 800;
+  const H = 300;
+  const PAD = { top: 12, right: 16, bottom: 28, left: 64 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  const prices = candles.flatMap((c) => [c.high, c.low]);
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const priceRange = maxP - minP || 1;
+
+  const toY = (p: number) => PAD.top + chartH - ((p - minP) / priceRange) * chartH;
+  const gap = chartW / candles.length;
+  const candleW = Math.max(2, gap * 0.7);
+
+  const yTicks = Array.from({ length: 5 }, (_, i) => minP + (priceRange / 4) * i);
+  const priceDec = priceRange < 0.01 ? 5 : priceRange < 1 ? 4 : priceRange < 100 ? 2 : 0;
+  const xStep = Math.max(1, Math.ceil(candles.length / 6));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 350 }}>
+      {yTicks.map((p, i) => (
+        <g key={i}>
+          <line
+            x1={PAD.left} y1={toY(p)}
+            x2={W - PAD.right} y2={toY(p)}
+            stroke="var(--border)" strokeWidth={0.5} strokeDasharray="4 4"
+          />
+          <text
+            x={PAD.left - 6} y={toY(p) + 4}
+            fontSize={9} textAnchor="end" fill="var(--text-muted)"
+          >
+            {p.toFixed(priceDec)}
+          </text>
+        </g>
+      ))}
+
+      {candles.map((c, i) => {
+        const isGreen = c.close >= c.open;
+        const color = isGreen ? "var(--green)" : "var(--red)";
+        const centerX = PAD.left + i * gap + gap / 2;
+        const openY = toY(c.open);
+        const closeY = toY(c.close);
+        const highY = toY(c.high);
+        const lowY = toY(c.low);
+        const bodyTop = Math.min(openY, closeY);
+        const bodyH = Math.max(1, Math.abs(closeY - openY));
+        return (
+          <g key={c.time}>
+            <line x1={centerX} y1={highY} x2={centerX} y2={lowY} stroke={color} strokeWidth={1} />
+            <rect
+              x={centerX - candleW / 2} y={bodyTop}
+              width={candleW} height={bodyH}
+              fill={color}
+            />
+          </g>
+        );
+      })}
+
+      {candles
+        .filter((_, i) => i % xStep === 0)
+        .map((c, idx) => {
+          const i = idx * xStep;
+          const x = PAD.left + i * gap + gap / 2;
+          const d = new Date(c.time * 1000);
+          const label = d.toLocaleDateString("es-ES", { month: "short", day: "2-digit" });
+          return (
+            <text key={c.time} x={x} y={H - 6} fontSize={9} textAnchor="middle" fill="var(--text-muted)">
+              {label}
+            </text>
+          );
+        })}
+    </svg>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(n?: number) {
@@ -161,6 +262,11 @@ export default function MT5Page() {
   const [priceLoading, setPriceLoading] = useState(false);
   const [openItem, setOpenItem] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartSymbol, setChartSymbol] = useState("EURUSD");
+  const [chartTf, setChartTf] = useState("H1");
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [chartInput, setChartInput] = useState("");
+  const [candleAccordion, setCandleAccordion] = useState<string | null>(null);
 
   async function fetchStatus(silent = false) {
     try {
@@ -189,6 +295,16 @@ export default function MT5Page() {
     } catch {}
   }
 
+  async function fetchCandles(sym = chartSymbol, tf = chartTf) {
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/mt5/candles/${sym}?timeframe=${tf}&count=100`
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) setCandles(data);
+    } catch {}
+  }
+
   async function fetchPrice() {
     const sym = symbolInput.trim().toUpperCase();
     if (!sym) return;
@@ -208,15 +324,18 @@ export default function MT5Page() {
     fetchStatus();
     fetchPositions();
     fetchHistory();
+    fetchCandles();
 
     const s = setInterval(() => fetchStatus(true), 10_000);
     const p = setInterval(fetchPositions, 5_000);
     const h = setInterval(fetchHistory, 30_000);
+    const c = setInterval(() => fetchCandles(), 30_000);
 
     return () => {
       clearInterval(s);
       clearInterval(p);
       clearInterval(h);
+      clearInterval(c);
     };
   }, []);
 
@@ -497,6 +616,177 @@ export default function MT5Page() {
               pagás <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>$12 de spread</span> al abrir.
               Un spread bajo = broker más barato.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Candle chart ────────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <div
+          className="rounded-xl p-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+              Gráfico de Velas
+            </h2>
+            <div
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
+              style={{ background: "rgba(0,212,170,0.12)", border: "1px solid rgba(0,212,170,0.3)", color: "var(--green)" }}
+            >
+              <span
+                className="mt5-live-dot"
+                style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", display: "inline-block", flexShrink: 0 }}
+              />
+              LIVE
+            </div>
+          </div>
+
+          {/* Symbol quick buttons + input */}
+          <div className="flex gap-2 flex-wrap mb-3">
+            {QUICK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setChartSymbol(s);
+                  fetchCandles(s, chartTf);
+                }}
+                className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                style={{
+                  background: chartSymbol === s ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
+                  border: `1px solid ${chartSymbol === s ? "var(--blue)" : "var(--border)"}`,
+                  color: chartSymbol === s ? "var(--blue)" : "var(--text-muted)",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+            <input
+              value={chartInput}
+              onChange={(e) => setChartInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && chartInput.trim()) {
+                  const sym = chartInput.trim();
+                  setChartSymbol(sym);
+                  setChartInput("");
+                  fetchCandles(sym, chartTf);
+                }
+              }}
+              placeholder="Otro símbolo…"
+              className="px-3 py-1 rounded-lg text-xs outline-none font-semibold tracking-wider"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+                width: 130,
+              }}
+            />
+            <button
+              onClick={() => {
+                if (chartInput.trim()) {
+                  const sym = chartInput.trim();
+                  setChartSymbol(sym);
+                  setChartInput("");
+                  fetchCandles(sym, chartTf);
+                }
+              }}
+              className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+              style={{ background: "var(--blue)", color: "#fff" }}
+            >
+              Buscar
+            </button>
+          </div>
+
+          {/* Timeframe buttons */}
+          <div className="flex gap-2 flex-wrap mb-4">
+            {CHART_TIMEFRAMES.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => {
+                  setChartTf(tf);
+                  fetchCandles(chartSymbol, tf);
+                }}
+                className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                style={{
+                  background: chartTf === tf ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
+                  border: `1px solid ${chartTf === tf ? "var(--blue)" : "var(--border)"}`,
+                  color: chartTf === tf ? "var(--blue)" : "var(--text-muted)",
+                }}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          {/* Chart label */}
+          <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+            {chartSymbol} · {chartTf} · {candles.length} velas
+          </p>
+
+          {/* SVG candlestick chart */}
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+            <CandleChart candles={candles} />
+          </div>
+
+          {/* Educational accordion */}
+          <div
+            className="rounded-xl overflow-hidden mt-4"
+            style={{ border: "1px solid var(--border)" }}
+          >
+            {[
+              {
+                key: "candle-read",
+                title: "Cómo leer una vela japonesa",
+                body: "Cada vela representa un período de tiempo. Si el cuerpo es verde/blanco, el precio cerró más alto que la apertura (sube). Si es rojo/negro, cerró más bajo (baja). Las mechas (líneas finas) muestran los extremos — el máximo y mínimo alcanzados durante ese período.",
+              },
+              {
+                key: "timeframes",
+                title: "Timeframes",
+                body: "M1 = cada vela es 1 minuto. M5 = 5 minutos. H1 = 1 hora. H4 = 4 horas. D1 = 1 día. Timeframes cortos (M1–M15) muestran movimientos intradía; timeframes largos (H4–D1) revelan la tendencia general.",
+              },
+              {
+                key: "trends",
+                title: "Cómo identificar tendencias",
+                body: "Tendencia alcista: velas verdes consecutivas con máximos y mínimos cada vez más altos. Tendencia bajista: velas rojas consecutivas con máximos y mínimos cada vez más bajos. Lateralización: el precio oscila entre dos niveles sin dirección clara.",
+              },
+            ].map((item, i) => {
+              const open = candleAccordion === item.key;
+              return (
+                <div
+                  key={item.key}
+                  style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
+                >
+                  <button
+                    onClick={() => setCandleAccordion(open ? null : item.key)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:opacity-80 transition-colors"
+                    style={{ background: "transparent", border: "none", fontFamily: "inherit" }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {item.title}
+                    </span>
+                    <span
+                      className="text-xs transition-transform duration-200"
+                      style={{
+                        color: "var(--text-muted)",
+                        display: "inline-block",
+                        transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      ▾
+                    </span>
+                  </button>
+                  {open && (
+                    <div
+                      className="px-4 pb-3 text-sm leading-relaxed"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {item.body}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
