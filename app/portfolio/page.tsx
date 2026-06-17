@@ -31,7 +31,12 @@ interface PortfolioSummary {
 const COLORS = ["#00d4aa", "#3d7cff", "#ff4757", "#ffd32a", "#ff6b35", "#7c3aed", "#10b981", "#f59e0b"];
 
 export default function PortfolioPage() {
-  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioSummary>({
+    total_value: 0,
+    total_gain: 0,
+    total_gain_percent: 0,
+    positions: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -47,7 +52,13 @@ export default function PortfolioPage() {
     try {
       const res = await fetch("http://localhost:8000/api/portfolio/");
       const data = await res.json();
-      setPortfolio(data);
+      const positions: Position[] = Array.isArray(data) ? data : (data.positions ?? []);
+      setPortfolio({
+        total_value: Array.isArray(data) ? 0 : (data.total_value ?? 0),
+        total_gain: Array.isArray(data) ? 0 : (data.total_gain ?? 0),
+        total_gain_percent: Array.isArray(data) ? 0 : (data.total_gain_percent ?? 0),
+        positions,
+      });
     } catch {
       setError(true);
     } finally {
@@ -93,11 +104,10 @@ export default function PortfolioPage() {
     fetchPortfolio();
   }, []);
 
-  const pieData =
-    portfolio?.positions.map((p) => ({
-      name: p.symbol,
-      value: p.quantity * p.current_price,
-    })) ?? [];
+  const pieData = (portfolio?.positions ?? []).map((p) => ({
+    name: p.symbol,
+    value: p.quantity * p.current_price,
+  }));
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -122,7 +132,7 @@ export default function PortfolioPage() {
       )}
 
       {/* Summary */}
-      {portfolio && (
+      {(portfolio?.positions ?? []).length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             { label: "Valor Total", value: `$${portfolio.total_value.toLocaleString("en-US")}`, color: "var(--text-primary)" },
@@ -273,14 +283,14 @@ export default function PortfolioPage() {
                       </td>
                     </tr>
                   ))
-                ) : portfolio?.positions.length === 0 ? (
+                ) : (portfolio?.positions ?? []).length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-8" style={{ color: "var(--text-muted)" }}>
                       Sin posiciones. Agrega una arriba.
                     </td>
                   </tr>
                 ) : (
-                  portfolio?.positions.map((p, i) => (
+                  (portfolio?.positions ?? []).map((p, i) => (
                     <tr
                       key={p.id}
                       style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
