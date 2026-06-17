@@ -393,8 +393,12 @@ export default function MT5Page() {
         <div
           style={{
             position: "fixed",
-            left: hoveredCandle.x + 14,
-            top: hoveredCandle.y - 10,
+            left: hoveredCandle.x + 168 + 14 > window.innerWidth
+              ? hoveredCandle.x - 168 - 10
+              : hoveredCandle.x + 14,
+            top: hoveredCandle.y - 130 < 0
+              ? hoveredCandle.y + 10
+              : hoveredCandle.y - 130,
             pointerEvents: "none",
             zIndex: 9999,
             background: "#0f172a",
