@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveBadge } from "../components/LiveBadge";
 
 interface ETF {
   symbol: string;
@@ -43,6 +44,7 @@ export default function PassivePage() {
   const [staking, setStaking] = useState<StakingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const [monthly, setMonthly] = useState("200");
   const [years, setYears] = useState("10");
@@ -61,11 +63,29 @@ export default function PassivePage() {
       const [etfData, stakingData] = await Promise.all([etfRes.json(), stakingRes.json()]);
       setEtfs(etfData);
       setStaking(stakingData);
+      setLastUpdated(new Date());
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function fetchEtfsSilent() {
+    try {
+      const res = await fetch("http://localhost:8000/api/passive/etfs");
+      const data = await res.json();
+      setEtfs(data);
+      setLastUpdated(new Date());
+    } catch {}
+  }
+
+  async function fetchStakingSilent() {
+    try {
+      const res = await fetch("http://localhost:8000/api/passive/staking");
+      const data = await res.json();
+      setStaking(data);
+    } catch {}
   }
 
   async function calcDCA() {
@@ -91,18 +111,31 @@ export default function PassivePage() {
 
   useEffect(() => {
     fetchData();
+    const etfInterval = setInterval(fetchEtfsSilent, 120_000);
+    const stakingInterval = setInterval(fetchStakingSilent, 300_000);
+    return () => {
+      clearInterval(etfInterval);
+      clearInterval(stakingInterval);
+    };
   }, []);
 
   return (
     <div className="max-w-5xl mx-auto">
       {/* Hero */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-          🌱 Invierte sin estar pegado a la pantalla
-        </h1>
-        <p className="mt-2 text-lg" style={{ color: "var(--text-muted)" }}>
-          Estrategias pasivas que trabajan por ti mientras duermes. DCA, ETFs y staking explicados de forma simple.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
+              🌱 Invierte sin estar pegado a la pantalla
+            </h1>
+            <p className="mt-2 text-lg" style={{ color: "var(--text-muted)" }}>
+              Estrategias pasivas que trabajan por ti mientras duermes. DCA, ETFs y staking explicados de forma simple.
+            </p>
+          </div>
+          <div className="mt-1">
+            <LiveBadge lastUpdated={lastUpdated} />
+          </div>
+        </div>
       </div>
 
       {error && (

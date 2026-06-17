@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { LiveBadge } from "../components/LiveBadge";
 
 interface CryptoPrice {
   id?: string;
@@ -44,10 +45,10 @@ export default function MarketsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [search, setSearch] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  async function fetchData() {
-    setLoading(true);
-    setError(false);
+  async function fetchData(silent = false) {
+    if (!silent) { setLoading(true); setError(false); }
     try {
       const [cRes, sRes] = await Promise.all([
         fetch("http://localhost:8000/api/market/prices"),
@@ -56,15 +57,19 @@ export default function MarketsPage() {
       const [cData, sData] = await Promise.all([cRes.json(), sRes.json()]);
       setCryptos(cData);
       setStocks(sData);
+      setLastUpdated(new Date());
+      setError(false);
     } catch {
-      setError(true);
+      if (!silent) setError(true);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => fetchData(true), 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   const query = search.toLowerCase();
@@ -87,13 +92,16 @@ export default function MarketsPage() {
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
           📊 Mercados
         </h1>
-        <button
-          onClick={fetchData}
-          className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
-        >
-          ↻ Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          <LiveBadge lastUpdated={lastUpdated} />
+          <button
+            onClick={() => fetchData()}
+            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+          >
+            ↻ Actualizar
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -103,7 +111,7 @@ export default function MarketsPage() {
         >
           <span style={{ color: "var(--red)" }}>No se pudieron cargar los datos</span>
           <button
-            onClick={fetchData}
+            onClick={() => fetchData()}
             className="px-4 py-1.5 rounded-lg text-sm font-medium cursor-pointer"
             style={{ background: "var(--red)", color: "#fff" }}
           >
