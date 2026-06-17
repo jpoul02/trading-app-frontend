@@ -23,9 +23,17 @@ interface FearGreed {
 }
 
 interface TrendingItem {
-  id: string;
-  name: string;
-  symbol: string;
+  id?: string;
+  name?: string;
+  symbol?: string;
+  large?: string;
+  item?: {
+    id: string;
+    name: string;
+    symbol: string;
+    thumb: string;
+    large?: string;
+  };
 }
 
 function Skeleton() {
@@ -235,8 +243,27 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Fear & Greed */}
         <section>
-          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
             Índice Miedo &amp; Codicia
+            <span className="relative inline-block group cursor-help">
+              <span
+                className="inline-flex w-4 h-4 items-center justify-center rounded-full text-xs border"
+                style={{ borderColor: "var(--text-muted)", color: "var(--text-muted)" }}
+              >
+                ?
+              </span>
+              <span
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 p-3 rounded-lg text-xs pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20 leading-relaxed"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+              >
+                El Índice de Miedo &amp; Codicia mide el sentimiento del mercado cripto del 0 al 100.{" "}
+                <strong style={{ color: "#ff4757" }}>0-25: Miedo Extremo</strong> (puede ser oportunidad de compra),{" "}
+                <strong style={{ color: "#ff6b35" }}>26-45: Miedo</strong>,{" "}
+                <strong style={{ color: "#ffd32a" }}>46-55: Neutral</strong>,{" "}
+                <strong style={{ color: "#00d4aa" }}>56-75: Codicia</strong>,{" "}
+                <strong style={{ color: "#00ff88" }}>76-100: Codicia Extrema</strong> (puede ser momento de tomar ganancias).
+              </span>
+            </span>
           </h2>
           {loading ? (
             <Skeleton />
@@ -278,28 +305,38 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {trending.map((t, i) => (
-                <div
-                  key={t.id ?? `trending-${i}`}
-                  className="rounded-xl p-4 flex items-center gap-4"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-                >
-                  <span
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                    style={{ background: "rgba(61,124,255,0.15)", color: "var(--blue)" }}
+              {trending.map((t, i) => {
+                const name = t.item?.name ?? t.name ?? "—";
+                const symbol = t.item?.symbol ?? t.symbol ?? "—";
+                const thumb = t.item?.thumb ?? t.large;
+                const key = t.item?.id ?? t.id ?? `trending-${i}`;
+                return (
+                  <div
+                    key={key}
+                    className="rounded-xl p-4 flex items-center gap-4"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                   >
-                    #{i + 1}
-                  </span>
-                  <div>
-                    <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {t.name}
-                    </p>
-                    <p className="text-sm uppercase" style={{ color: "var(--text-muted)" }}>
-                      {t.symbol}
-                    </p>
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: "rgba(61,124,255,0.15)", color: "var(--blue)" }}
+                    >
+                      #{i + 1}
+                    </span>
+                    {thumb && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt={name} width={28} height={28} className="rounded-full shrink-0" />
+                    )}
+                    <div>
+                      <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {name}
+                      </p>
+                      <p className="text-sm uppercase" style={{ color: "var(--text-muted)" }}>
+                        {symbol}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
