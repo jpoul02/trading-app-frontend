@@ -73,7 +73,7 @@ const GLOSSARY = [
     key: "margin",
     icon: "🔒",
     term: "Margin (Margen)",
-    short: "El dinero que el broker reserva como garantía de tus operaciones.",
+    short: "El dinero que el broker reserva como garantía.",
     detail:
       "Cuando abrís un trade, el broker bloquea una porción de tu capital como garantía. Con leverage 1:100 y $10,000 operados, solo necesitás $100 de margen. Si el Equity cae por debajo del margen requerido, el broker cierra tus posiciones automáticamente (Margin Call).",
   },
@@ -91,13 +91,13 @@ const GLOSSARY = [
     term: "Leverage (Apalancamiento)",
     short: "Con 1:100 controlás $100 por cada $1 tuyo.",
     detail:
-      "El apalancamiento amplifica tanto ganancias como pérdidas. Con 1:100 y $100 controlás $10,000. Si el precio sube 1%, ganás $100 (100% de tu capital). Si baja 1%, perdés $100 (todo tu capital). Más apalancamiento = más riesgo. Empezá con 1:10 o 1:20.",
+      "El apalancamiento amplifica tanto ganancias como pérdidas. Con 1:100 y $100 en cuenta controlás $10,000. Si el precio sube 1%, ganás $100 (100% de tu capital). Si baja 1%, perdés todo. Más apalancamiento = más riesgo. Empezá con 1:10 o 1:20.",
   },
   {
     key: "profit",
     icon: "📈",
     term: "Profit Flotante",
-    short: "Ganancia o pérdida de posiciones abiertas en este momento.",
+    short: "Ganancia o pérdida de posiciones abiertas ahora mismo.",
     detail:
       "Cambia cada segundo mientras tenés posiciones abiertas. Verde = ganando. Rojo = perdiendo. No es dinero real hasta que cerrés la posición. Un trade en pérdida puede recuperarse si el mercado vuelve a tu favor — por eso existe el Stop Loss.",
   },
@@ -114,12 +114,12 @@ const FOREX_CONCEPTS = [
   {
     icon: "📦",
     title: "Lotes (Lot Size)",
-    body: "Tamaño de la operación. 1 lote estándar = 100,000 unidades. Mini lote = 10,000. Micro lote = 1,000. En MT5 podés operar desde 0.01 lotes (1,000 unidades).",
+    body: "Tamaño de la operación. 1 lote estándar = 100,000 unidades. Mini lote = 10,000. Micro lote = 1,000. En MT5 podés operar desde 0.01 lotes.",
   },
   {
     icon: "🛑",
     title: "Stop Loss",
-    body: "Orden automática para cerrar si perdés X cantidad. Protege tu cuenta de pérdidas catastróficas. Poné siempre Stop Loss antes de abrir un trade.",
+    body: "Orden automática para cerrar la posición si perdés X cantidad. Protege tu cuenta de pérdidas catastróficas. Siempre poné Stop Loss antes de abrir un trade.",
   },
   {
     icon: "🎯",
@@ -129,27 +129,9 @@ const FOREX_CONCEPTS = [
   {
     icon: "📈",
     title: "Long / Short",
-    body: "Long (BUY) = apostás a que el precio sube. Short (SELL) = apostás a que baja. En Forex ganás en ambas direcciones según el mercado.",
+    body: "Long (BUY) = apostás a que el precio sube y ganás si sube. Short (SELL) = apostás a que baja y ganás si baja. En Forex ganás en ambas direcciones.",
   },
 ];
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
-const GREEN  = "#16c784";
-const RED    = "#ea3943";
-const TEXT   = "oklch(0.9851 0 0)";
-const TEXT2  = "oklch(0.7090 0 0)";
-const MUTED  = "oklch(0.5555 0 0)";
-const DIM    = "oklch(0.3715 0 0)";
-const CARD   = "oklch(0.2134 0 0)";
-const CARD2  = "oklch(0.1448 0 0)";
-const BORDER = "oklch(0.3407 0 0)";
-
-const CARD_STYLE: React.CSSProperties = {
-  background: CARD,
-  border: `1px solid ${BORDER}`,
-  borderRadius: 0,
-};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -159,46 +141,12 @@ function fmt(n?: number) {
     : "—";
 }
 
-function StatBox({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-}) {
+function Skeleton({ h = "h-28" }: { h?: string }) {
   return (
     <div
-      style={{
-        padding: "12px 14px",
-        border: `1px solid ${DIM}40`,
-        background: CARD2,
-      }}
-    >
-      <p
-        style={{
-          fontSize: 9,
-          color: DIM,
-          letterSpacing: "0.14em",
-          marginBottom: 6,
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          color: color ?? TEXT,
-          fontSize: 18,
-          fontWeight: 800,
-          letterSpacing: "-0.02em",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </p>
-    </div>
+      className={`animate-pulse rounded-xl ${h}`}
+      style={{ background: "var(--bg-card)" }}
+    />
   );
 }
 
@@ -212,13 +160,16 @@ export default function MT5Page() {
   const [priceResult, setPriceResult] = useState<MT5Price | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [openItem, setOpenItem] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  async function fetchStatus() {
+  async function fetchStatus(silent = false) {
     try {
       const res = await fetch("http://localhost:8000/api/mt5/status");
       setStatus(await res.json());
     } catch {
       setStatus({ connected: false, error: "No se pudo conectar al servidor (puerto 8000)" });
+    } finally {
+      if (!silent) setLoading(false);
     }
   }
 
@@ -258,7 +209,7 @@ export default function MT5Page() {
     fetchPositions();
     fetchHistory();
 
-    const s = setInterval(fetchStatus, 10_000);
+    const s = setInterval(() => fetchStatus(true), 10_000);
     const p = setInterval(fetchPositions, 5_000);
     const h = setInterval(fetchHistory, 30_000);
 
@@ -273,513 +224,319 @@ export default function MT5Page() {
   const cur = status?.currency ?? "USD";
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", fontFamily: "inherit" }}>
+    <div className="max-w-5xl mx-auto">
       <style>{`
         @keyframes mt5pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.25; transform: scale(0.65); }
+          50%       { opacity: 0.25; transform: scale(0.65); }
         }
-        .mt5-dot { animation: mt5pulse 2s ease-in-out infinite; }
+        .mt5-live-dot { animation: mt5pulse 2s ease-in-out infinite; }
       `}</style>
 
-      {/* ══ Header ══════════════════════════════════════════════════════════ */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginBottom: 20,
-        }}
-      >
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1
-            style={{
-              color: TEXT,
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              lineHeight: 1,
-            }}
-          >
-            MetaTrader 5
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+            📈 MetaTrader 5
           </h1>
-          <p style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
-            Cuenta demo · {status?.server ?? "MetaQuotes-Demo"}
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+            Cuenta demo en vivo · {status?.server ?? "MetaQuotes-Demo"}
           </p>
         </div>
 
+        {/* Connection badge */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "8px 14px",
-            background: connected ? `${GREEN}0d` : `${RED}0d`,
-            border: `1px solid ${connected ? GREEN : RED}30`,
-          }}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
+          style={
+            connected
+              ? { background: "rgba(0,212,170,0.12)", border: "1px solid rgba(0,212,170,0.3)", color: "var(--green)" }
+              : { background: "rgba(255,71,87,0.1)", border: "1px solid rgba(255,71,87,0.35)", color: "var(--red)" }
+          }
         >
           <span
-            className={connected ? "mt5-dot" : undefined}
+            className={connected ? "mt5-live-dot" : undefined}
             style={{
-              width: 6,
-              height: 6,
+              width: 7,
+              height: 7,
               borderRadius: "50%",
-              background: connected ? GREEN : RED,
+              background: connected ? "var(--green)" : "var(--red)",
               display: "inline-block",
               flexShrink: 0,
             }}
           />
-          <span
-            style={{
-              fontSize: 11,
-              color: connected ? GREEN : RED,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-            }}
-          >
-            {connected ? "CONECTADO" : "DESCONECTADO"}
-          </span>
+          {connected ? "CONECTADO" : "DESCONECTADO"}
         </div>
       </div>
 
-      {/* ══ Connection error ════════════════════════════════════════════════ */}
-      {status && !connected && (
+      {/* ── Loading skeleton ────────────────────────────────────────────── */}
+      {loading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h="h-24" />)}
+        </div>
+      )}
+
+      {/* ── Connection error ────────────────────────────────────────────── */}
+      {!loading && status && !connected && (
         <div
-          style={{
-            marginBottom: 20,
-            padding: "14px 18px",
-            border: `1px solid ${RED}30`,
-            background: `${RED}08`,
-          }}
+          className="mb-6 p-4 rounded-xl"
+          style={{ background: "rgba(255,71,87,0.08)", border: "1px solid var(--red)" }}
         >
-          <p style={{ color: RED, fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+          <p className="font-semibold mb-1" style={{ color: "var(--red)" }}>
             MT5 no disponible
           </p>
-          <p style={{ color: TEXT2, fontSize: 12, marginBottom: 6 }}>
+          <p className="text-sm mb-2" style={{ color: "var(--text-muted)" }}>
             {status.error}
           </p>
-          <p style={{ color: MUTED, fontSize: 11, lineHeight: 1.7 }}>
-            Para conectar: abrí MetaTrader 5 en Windows → iniciá sesión con tu cuenta demo →
-            los datos aparecerán automáticamente en esta página (refresca cada 10s).
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Abrí MetaTrader 5 en Windows → iniciá sesión con tu cuenta demo → los datos
+            aparecerán automáticamente (refresca cada 10s).
           </p>
         </div>
       )}
 
-      {/* ══ Account stats ═══════════════════════════════════════════════════ */}
-      {connected && (
-        <div style={{ ...CARD_STYLE, padding: 22, marginBottom: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: MUTED,
-                letterSpacing: "0.01em",
-              }}
-            >
+      {/* ── Account stats ───────────────────────────────────────────────── */}
+      {!loading && connected && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
               Cuenta #{status?.login} — {status?.name}
-            </p>
-            <span style={{ fontSize: 10, color: DIM, letterSpacing: "0.08em" }}>
+            </h2>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               Leverage 1:{status?.leverage} · {cur}
             </span>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 8,
-            }}
-          >
-            <StatBox label="Balance" value={`${cur} ${fmt(status?.balance)}`} />
-            <StatBox label="Equity" value={`${cur} ${fmt(status?.equity)}`} />
-            <StatBox
-              label="Profit Flotante"
-              value={`${(status?.profit ?? 0) >= 0 ? "+" : ""}${fmt(status?.profit)}`}
-              color={(status?.profit ?? 0) >= 0 ? GREEN : RED}
-            />
-            <StatBox label="Margin Libre" value={`${cur} ${fmt(status?.margin_free)}`} color={TEXT2} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: "Balance", value: `${cur} ${fmt(status?.balance)}`, color: "var(--text-primary)" },
+              { label: "Equity", value: `${cur} ${fmt(status?.equity)}`, color: "var(--text-primary)" },
+              {
+                label: "Profit Flotante",
+                value: `${(status?.profit ?? 0) >= 0 ? "+" : ""}${fmt(status?.profit)}`,
+                color: (status?.profit ?? 0) >= 0 ? "var(--green)" : "var(--red)",
+              },
+              { label: "Margin Libre", value: `${cur} ${fmt(status?.margin_free)}`, color: "var(--blue)" },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="rounded-xl p-4"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+              >
+                <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                  {label}
+                </p>
+                <p className="text-lg font-bold tabular-nums" style={{ color }}>
+                  {value}
+                </p>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ══ Educational accordion ═══════════════════════════════════════════ */}
-      <div style={{ ...CARD_STYLE, marginBottom: 20, overflow: "hidden" }}>
-        <div style={{ padding: "16px 22px 4px" }}>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: MUTED,
-              letterSpacing: "0.01em",
-              marginBottom: 4,
-            }}
-          >
-            ¿Qué significa cada número?
-          </p>
-        </div>
-        {GLOSSARY.map((item, i) => {
-          const open = openItem === item.key;
-          return (
-            <div
-              key={item.key}
-              style={{ borderTop: `1px solid ${DIM}40` }}
-            >
-              <button
-                onClick={() => setOpenItem(open ? null : item.key)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: i === 0 ? "10px 22px 12px" : "12px 22px",
-                  background: open ? `${MUTED}08` : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  textAlign: "left",
-                  transition: "background 0.15s",
-                }}
+      {/* ── Educational accordion ───────────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          ¿Qué significa cada número?
+        </h2>
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {GLOSSARY.map((item, i) => {
+            const open = openItem === item.key;
+            return (
+              <div
+                key={item.key}
+                style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
               >
-                <span style={{ fontSize: 17, flexShrink: 0 }}>{item.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ color: TEXT, fontSize: 13, fontWeight: 600 }}>
-                    {item.term}
-                  </p>
-                  <p style={{ color: MUTED, fontSize: 11, marginTop: 1 }}>
-                    {item.short}
-                  </p>
-                </div>
-                <span
-                  style={{
-                    color: DIM,
-                    fontSize: 11,
-                    flexShrink: 0,
-                    display: "inline-block",
-                    transform: open ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.18s",
-                  }}
+                <button
+                  onClick={() => setOpenItem(open ? null : item.key)}
+                  className="w-full flex items-center gap-3 px-5 py-4 text-left cursor-pointer transition-colors hover:opacity-80"
+                  style={{ background: "transparent", border: "none", fontFamily: "inherit" }}
                 >
-                  ▾
-                </span>
-              </button>
-              {open && (
-                <div style={{ padding: "0 22px 14px 52px" }}>
-                  <p style={{ color: TEXT2, fontSize: 12, lineHeight: 1.8 }}>
+                  <span className="text-xl shrink-0">{item.icon}</span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
+                      {item.term}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      {item.short}
+                    </p>
+                  </div>
+                  <span
+                    className="text-xs shrink-0 transition-transform duration-200"
+                    style={{
+                      color: "var(--text-muted)",
+                      display: "inline-block",
+                      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    ▾
+                  </span>
+                </button>
+                {open && (
+                  <div
+                    className="px-5 pb-4 text-sm leading-relaxed"
+                    style={{ color: "var(--text-muted)", paddingLeft: "3.75rem" }}
+                  >
                     {item.detail}
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-      {/* ══ Price lookup ════════════════════════════════════════════════════ */}
-      <div style={{ ...CARD_STYLE, padding: 22, marginBottom: 20 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: MUTED,
-            letterSpacing: "0.01em",
-            marginBottom: 14,
-          }}
-        >
+      {/* ── Price lookup ────────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           Precios en Vivo
-        </p>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <input
-            value={symbolInput}
-            onChange={(e) => setSymbolInput(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && fetchPrice()}
-            placeholder="Ej: EURUSD"
-            style={{
-              flex: 1,
-              padding: "9px 12px",
-              background: CARD2,
-              border: `1px solid ${BORDER}`,
-              color: TEXT,
-              fontSize: 13,
-              outline: "none",
-              fontFamily: "inherit",
-              letterSpacing: "0.08em",
-              fontWeight: 600,
-              borderRadius: 0,
-            }}
-          />
-          <button
-            onClick={fetchPrice}
-            disabled={priceLoading}
-            style={{
-              padding: "9px 22px",
-              background: TEXT,
-              color: CARD2,
-              border: "none",
-              cursor: priceLoading ? "default" : "pointer",
-              fontSize: 11,
-              fontWeight: 700,
-              fontFamily: "inherit",
-              letterSpacing: "0.1em",
-              borderRadius: 0,
-              opacity: priceLoading ? 0.6 : 1,
-            }}
-          >
-            {priceLoading ? "..." : "BUSCAR"}
-          </button>
-        </div>
-
-        {/* Quick symbol buttons */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
-          {QUICK_SYMBOLS.map((s) => (
+        </h2>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {/* Input + search */}
+          <div className="flex gap-2 mb-3">
+            <input
+              value={symbolInput}
+              onChange={(e) => setSymbolInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && fetchPrice()}
+              placeholder="Ej: EURUSD"
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none font-semibold tracking-wider"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }}
+            />
             <button
-              key={s}
-              onClick={() => {
-                setSymbolInput(s);
-                setPriceResult(null);
-              }}
-              style={{
-                padding: "4px 10px",
-                border: `1px solid ${symbolInput === s ? MUTED : BORDER}`,
-                background: symbolInput === s ? `${MUTED}18` : "transparent",
-                color: symbolInput === s ? TEXT : MUTED,
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                letterSpacing: "0.1em",
-                borderRadius: 0,
-              }}
+              onClick={fetchPrice}
+              disabled={priceLoading}
+              className="px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--blue)", color: "#fff" }}
             >
-              {s}
+              {priceLoading ? "..." : "Buscar"}
             </button>
-          ))}
-        </div>
-
-        {/* Price result */}
-        {priceResult && !priceResult.error && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 8,
-              marginBottom: 18,
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 16px",
-                border: `1px solid ${GREEN}25`,
-                background: `${GREEN}06`,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 9,
-                  color: DIM,
-                  letterSpacing: "0.14em",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                }}
-              >
-                BID — vendés a
-              </p>
-              <p
-                style={{
-                  color: GREEN,
-                  fontSize: 22,
-                  fontWeight: 800,
-                  fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {priceResult.bid?.toFixed(priceResult.digits ?? 5)}
-              </p>
-            </div>
-            <div
-              style={{
-                padding: "14px 16px",
-                border: `1px solid ${RED}25`,
-                background: `${RED}06`,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 9,
-                  color: DIM,
-                  letterSpacing: "0.14em",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                }}
-              >
-                ASK — comprás a
-              </p>
-              <p
-                style={{
-                  color: RED,
-                  fontSize: 22,
-                  fontWeight: 800,
-                  fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {priceResult.ask?.toFixed(priceResult.digits ?? 5)}
-              </p>
-            </div>
-            <div
-              style={{
-                padding: "14px 16px",
-                border: `1px solid ${BORDER}`,
-                background: CARD2,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 9,
-                  color: DIM,
-                  letterSpacing: "0.14em",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                }}
-              >
-                Spread (pips)
-              </p>
-              <p
-                style={{
-                  color: TEXT,
-                  fontSize: 22,
-                  fontWeight: 800,
-                  fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {priceResult.spread?.toFixed(1)}
-              </p>
-            </div>
           </div>
-        )}
 
-        {priceResult?.error && (
-          <div
-            style={{
-              padding: "10px 14px",
-              border: `1px solid ${RED}30`,
-              background: `${RED}06`,
-              marginBottom: 18,
-            }}
-          >
-            <p style={{ color: RED, fontSize: 12 }}>{priceResult.error}</p>
+          {/* Quick symbols */}
+          <div className="flex gap-2 flex-wrap mb-5">
+            {QUICK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                onClick={() => { setSymbolInput(s); setPriceResult(null); }}
+                className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                style={{
+                  background: symbolInput === s ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
+                  border: `1px solid ${symbolInput === s ? "var(--blue)" : "var(--border)"}`,
+                  color: symbolInput === s ? "var(--blue)" : "var(--text-muted)",
+                }}
+              >
+                {s}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Educational note */}
-        <div
-          style={{
-            padding: "12px 16px",
-            background: CARD2,
-            border: `1px solid ${BORDER}`,
-          }}
-        >
-          <p style={{ color: TEXT2, fontSize: 12, lineHeight: 1.85 }}>
-            <strong style={{ color: GREEN }}>Bid</strong> = precio al que el broker te compra (vos vendés).{" "}
-            <strong style={{ color: RED }}>Ask</strong> = precio al que el broker te vende (vos comprás).{" "}
-            <strong style={{ color: TEXT }}>Spread</strong> = la diferencia entre ambos —
-            esa es la comisión implícita del broker.
-          </p>
-          <p style={{ color: MUTED, fontSize: 11, marginTop: 8, lineHeight: 1.8 }}>
-            Ejemplo: EURUSD con spread de 1.2 pips y 1 lote (100,000 EUR) →
-            pagás <span style={{ color: TEXT }}>$12 de spread</span> al abrir la posición.
-            Un spread bajo = broker más barato.
-          </p>
-        </div>
-      </div>
+          {/* Price result */}
+          {priceResult && !priceResult.error && (
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.25)" }}
+              >
+                <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>BID — vendés a</p>
+                <p className="text-xl font-bold tabular-nums" style={{ color: "var(--green)" }}>
+                  {priceResult.bid?.toFixed(priceResult.digits ?? 5)}
+                </p>
+              </div>
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "rgba(255,71,87,0.08)", border: "1px solid rgba(255,71,87,0.25)" }}
+              >
+                <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>ASK — comprás a</p>
+                <p className="text-xl font-bold tabular-nums" style={{ color: "var(--red)" }}>
+                  {priceResult.ask?.toFixed(priceResult.digits ?? 5)}
+                </p>
+              </div>
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              >
+                <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Spread (pips)</p>
+                <p className="text-xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  {priceResult.spread?.toFixed(1)}
+                </p>
+              </div>
+            </div>
+          )}
 
-      {/* ══ Open positions ══════════════════════════════════════════════════ */}
-      <div style={{ ...CARD_STYLE, marginBottom: 20 }}>
-        <div
-          style={{
-            padding: "18px 22px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            borderBottom: positions.length > 0 ? `1px solid ${BORDER}` : undefined,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: MUTED,
-              letterSpacing: "0.01em",
-            }}
+          {priceResult?.error && (
+            <div
+              className="rounded-xl p-3 mb-5 text-sm"
+              style={{ background: "rgba(255,71,87,0.1)", border: "1px solid var(--red)", color: "var(--red)" }}
+            >
+              {priceResult.error}
+            </div>
+          )}
+
+          {/* Educational note */}
+          <div
+            className="rounded-xl p-4 text-sm leading-relaxed"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
           >
+            <p style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: "var(--green)", fontWeight: 600 }}>Bid</span> = precio al que el broker te compra (vos vendés).{" "}
+              <span style={{ color: "var(--red)", fontWeight: 600 }}>Ask</span> = precio al que el broker te vende (vos comprás).{" "}
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Spread</span> = la diferencia entre ambos —
+              esa es la comisión implícita del broker.
+            </p>
+            <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              Ejemplo: EURUSD spread 1.2 pips + 1 lote (100,000 EUR) →
+              pagás <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>$12 de spread</span> al abrir.
+              Un spread bajo = broker más barato.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Open positions ──────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
             Posiciones Abiertas
-          </p>
+          </h2>
           {positions.length > 0 && (
             <span
-              style={{
-                padding: "1px 7px",
-                background: `${GREEN}15`,
-                color: GREEN,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-              }}
+              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(0,212,170,0.15)", color: "var(--green)" }}
             >
               {positions.length}
             </span>
           )}
         </div>
 
-        {positions.length === 0 ? (
-          <div style={{ padding: "36px 22px", textAlign: "center" }}>
-            <p style={{ color: DIM, fontSize: 13, marginBottom: 6 }}>
-              Sin posiciones abiertas
-            </p>
-            <p style={{ color: MUTED, fontSize: 11, maxWidth: 380, margin: "0 auto" }}>
-              Abrí una operación en MetaTrader 5 y aparecerá aquí automáticamente.
-              Esta tabla se actualiza cada 5 segundos.
-            </p>
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-              }}
-            >
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          {positions.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="font-semibold mb-2" style={{ color: "var(--text-muted)" }}>
+                Sin posiciones abiertas
+              </p>
+              <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>
+                Abrí una operación en MetaTrader 5 y aparecerá aquí automáticamente.
+                Esta tabla se actualiza cada 5 segundos.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
               <thead>
-                <tr>
-                  {[
-                    "Símbolo",
-                    "Tipo",
-                    "Volumen",
-                    "Entrada",
-                    "Actual",
-                    "Profit / Loss",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "9px 14px",
-                        color: MUTED,
-                        fontSize: 10,
-                        fontWeight: 600,
-                        letterSpacing: "0.08em",
-                        textAlign: "left",
-                        whiteSpace: "nowrap",
-                        borderBottom: `1px solid ${DIM}40`,
-                      }}
-                    >
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  {["Símbolo", "Tipo", "Volumen", "Entrada", "Actual", "Profit / Loss"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3" style={{ color: "var(--text-muted)" }}>
                       {h}
                     </th>
                   ))}
@@ -789,275 +546,150 @@ export default function MT5Page() {
                 {positions.map((p, i) => (
                   <tr
                     key={p.ticket}
-                    style={{
-                      borderTop: i > 0 ? `1px solid ${DIM}25` : undefined,
-                    }}
+                    style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
                   >
-                    <td
-                      style={{
-                        padding: "11px 14px",
-                        color: TEXT,
-                        fontWeight: 700,
-                        letterSpacing: "0.06em",
-                      }}
-                    >
+                    <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>
                       {p.symbol}
                     </td>
-                    <td style={{ padding: "11px 14px" }}>
+                    <td className="px-4 py-3">
                       <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
                         style={{
-                          padding: "2px 8px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: p.type === "BUY" ? GREEN : RED,
-                          background:
-                            p.type === "BUY" ? `${GREEN}12` : `${RED}12`,
+                          background: p.type === "BUY" ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)",
+                          color: p.type === "BUY" ? "var(--green)" : "var(--red)",
                         }}
                       >
                         {p.type}
                       </span>
                     </td>
-                    <td
-                      style={{
-                        padding: "11px 14px",
-                        color: TEXT2,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
+                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
                       {p.volume}
                     </td>
-                    <td
-                      style={{
-                        padding: "11px 14px",
-                        color: TEXT2,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
+                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
                       {p.open_price}
                     </td>
-                    <td
-                      style={{
-                        padding: "11px 14px",
-                        color: TEXT,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
+                    <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                       {p.current_price}
                     </td>
                     <td
-                      style={{
-                        padding: "11px 14px",
-                        fontWeight: 700,
-                        fontVariantNumeric: "tabular-nums",
-                        color: p.profit >= 0 ? GREEN : RED,
-                      }}
+                      className="px-4 py-3 font-semibold tabular-nums"
+                      style={{ color: p.profit >= 0 ? "var(--green)" : "var(--red)" }}
                     >
-                      {p.profit >= 0 ? "+" : ""}
-                      {fmt(p.profit)}
+                      {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
-
-      {/* ══ Trade history ═══════════════════════════════════════════════════ */}
-      <div style={{ ...CARD_STYLE, marginBottom: 20 }}>
-        <div
-          style={{
-            padding: "18px 22px 14px",
-            borderBottom: deals.length > 0 ? `1px solid ${BORDER}` : undefined,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: MUTED,
-              letterSpacing: "0.01em",
-            }}
-          >
-            Historial de Operaciones (últimas 20)
-          </p>
+          )}
         </div>
+      </section>
 
-        {deals.length === 0 ? (
-          <div style={{ padding: "36px 22px", textAlign: "center" }}>
-            <p style={{ color: DIM, fontSize: 13, marginBottom: 6 }}>
-              Sin operaciones cerradas
-            </p>
-            <p style={{ color: MUTED, fontSize: 11 }}>
-              Tu historial de operaciones cerradas (90 días) aparecerá aquí.
-            </p>
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-              }}
-            >
-              <thead>
-                <tr>
-                  {[
-                    "Símbolo",
-                    "Tipo",
-                    "Volumen",
-                    "Precio Cierre",
-                    "Profit",
-                    "Fecha",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "9px 14px",
-                        color: MUTED,
-                        fontSize: 10,
-                        fontWeight: 600,
-                        letterSpacing: "0.08em",
-                        textAlign: "left",
-                        whiteSpace: "nowrap",
-                        borderBottom: `1px solid ${DIM}40`,
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {deals.map((d, i) => (
-                  <tr
-                    key={d.ticket}
-                    style={{
-                      borderTop: i > 0 ? `1px solid ${DIM}25` : undefined,
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        color: TEXT,
-                        fontWeight: 700,
-                        letterSpacing: "0.06em",
-                      }}
-                    >
-                      {d.symbol}
-                    </td>
-                    <td style={{ padding: "10px 14px" }}>
-                      <span
-                        style={{
-                          padding: "2px 8px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: d.type === "BUY" ? GREEN : RED,
-                          background:
-                            d.type === "BUY" ? `${GREEN}12` : `${RED}12`,
-                        }}
-                      >
-                        {d.type}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        color: TEXT2,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {d.volume}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        color: TEXT2,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {d.price}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        fontWeight: 700,
-                        fontVariantNumeric: "tabular-nums",
-                        color: d.profit >= 0 ? GREEN : RED,
-                      }}
-                    >
-                      {d.profit >= 0 ? "+" : ""}
-                      {fmt(d.profit)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 14px",
-                        color: MUTED,
-                        fontSize: 11,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {new Date(d.time).toLocaleDateString("es-ES", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* ══ Forex concepts ══════════════════════════════════════════════════ */}
-      <div style={{ marginBottom: 8 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: MUTED,
-            letterSpacing: "0.01em",
-            marginBottom: 14,
-          }}
-        >
-          Conceptos Clave del Forex
-        </p>
+      {/* ── Trade history ───────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          Historial de Operaciones
+        </h2>
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-            gap: 8,
-          }}
+          className="rounded-xl overflow-hidden"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
         >
+          {deals.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="font-semibold mb-2" style={{ color: "var(--text-muted)" }}>
+                Sin operaciones cerradas
+              </p>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Tu historial de operaciones cerradas (90 días) aparecerá aquí.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    {["Símbolo", "Tipo", "Volumen", "Precio Cierre", "Profit", "Fecha"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {deals.map((d, i) => (
+                    <tr
+                      key={d.ticket}
+                      style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
+                    >
+                      <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>
+                        {d.symbol}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: d.type === "BUY" ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)",
+                            color: d.type === "BUY" ? "var(--green)" : "var(--red)",
+                          }}
+                        >
+                          {d.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        {d.volume}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        {d.price}
+                      </td>
+                      <td
+                        className="px-4 py-3 font-semibold tabular-nums"
+                        style={{ color: d.profit >= 0 ? "var(--green)" : "var(--red)" }}
+                      >
+                        {d.profit >= 0 ? "+" : ""}{fmt(d.profit)}
+                      </td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {new Date(d.time).toLocaleDateString("es-ES", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Forex concepts ──────────────────────────────────────────────── */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          Conceptos Clave del Forex
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {FOREX_CONCEPTS.map((c) => (
-            <div key={c.title} style={{ ...CARD_STYLE, padding: "16px 18px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 8,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{c.icon}</span>
-                <p style={{ color: TEXT, fontWeight: 700, fontSize: 13 }}>
+            <div
+              key={c.title}
+              className="rounded-xl p-5"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{c.icon}</span>
+                <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
                   {c.title}
                 </p>
               </div>
-              <p
-                style={{ color: TEXT2, fontSize: 11, lineHeight: 1.8 }}
-              >
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {c.body}
               </p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
