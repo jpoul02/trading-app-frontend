@@ -91,7 +91,7 @@ export default function LearnPage() {
     <div className="max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-          🎓 Academia de Trading
+          Academia de Trading
         </h1>
         <p className="mt-1" style={{ color: "var(--text-muted)" }}>
           Aprende desde cero con lecciones simples y un glosario completo.
