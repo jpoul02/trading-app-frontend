@@ -165,17 +165,34 @@ function CandleChart({ candles }: { candles: Candle[] }) {
   const chartH = H - PAD.top - PAD.bottom;
 
   const prices = candles.flatMap((c) => [c.high, c.low]);
-  const minP = Math.min(...prices);
-  const maxP = Math.max(...prices);
-  const priceRange = maxP - minP || 1;
+  const rawMin = Math.min(...prices);
+  const rawMax = Math.max(...prices);
+  const rawRange = rawMax - rawMin || 1;
+  // Pad 10% vertically so candles don't hug top/bottom edges
+  const vPad = rawRange * 0.1;
+  const minP = rawMin - vPad;
+  const maxP = rawMax + vPad;
+  const priceRange = maxP - minP;
+
+  console.log('[candles] minPrice:', rawMin, 'maxPrice:', rawMax, 'range:', rawRange, 'vPad:', vPad);
 
   const toY = (p: number) => PAD.top + chartH - ((p - minP) / priceRange) * chartH;
   const gap = chartW / candles.length;
   const candleW = Math.max(2, gap * 0.7);
 
-  const yTicks = Array.from({ length: 5 }, (_, i) => minP + (priceRange / 4) * i);
-  const priceDec = priceRange < 0.01 ? 5 : priceRange < 1 ? 4 : priceRange < 100 ? 2 : 0;
+  const yTicks = Array.from({ length: 5 }, (_, i) => rawMin + (rawRange / 4) * i);
+  const priceDec = rawRange < 0.01 ? 5 : rawRange < 1 ? 4 : rawRange < 100 ? 2 : 0;
   const xStep = Math.max(1, Math.ceil(candles.length / 6));
+
+  // Log first candle position for debugging
+  if (candles.length > 0) {
+    const c0 = candles[0];
+    const openY0 = toY(c0.open);
+    const closeY0 = toY(c0.close);
+    const bodyH0 = Math.max(1, Math.abs(closeY0 - openY0));
+    const color0 = c0.close >= c0.open ? "var(--green)" : "var(--red)";
+    console.log('[candle 0]', { x: PAD.left, bodyTop: Math.min(openY0, closeY0), bodyHeight: bodyH0, color: color0, open: c0.open, close: c0.close });
+  }
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 350 }}>
@@ -314,7 +331,10 @@ export default function MT5Page() {
         `http://localhost:8000/api/mt5/candles/${sym}?timeframe=${tf}&count=100`
       );
       const data = await res.json();
-      if (Array.isArray(data)) setCandles(data);
+      if (Array.isArray(data)) {
+        console.log('[candles] fetched:', data.length, 'first:', data[0]);
+        setCandles(data);
+      }
     } catch {}
   }
 
