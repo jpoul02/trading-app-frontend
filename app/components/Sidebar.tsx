@@ -201,10 +201,17 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
       <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${BORDER}` }}>
         <div style={{ padding: "12px", background: "oklch(0.1448 0 0)", border: `1px solid ${BORDER}` }}>
 
-          {/* Header: "Actividad" + tooltip icon */}
+          {/* Header: "Actividad" + status dot + tooltip */}
           <div style={{ display: "flex", alignItems: "center", marginBottom: 8, gap: 4 }}>
             <span style={{ fontSize: 10, color: MUTED, fontWeight: 500 }}>Actividad</span>
-            <div style={{ position: "relative", display: "inline-flex" }}>
+            {/* Status dot — reflects active tab */}
+            <span style={{
+              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+              background: tab === "crypto" || nyseOpen ? GREEN : RED,
+              boxShadow: tab === "crypto" || nyseOpen ? `0 0 4px ${GREEN}` : `0 0 4px ${RED}`,
+            }} />
+            {/* Spacer + tooltip */}
+            <div style={{ marginLeft: "auto", position: "relative", display: "inline-flex" }}>
               <span
                 onMouseEnter={() => setShowTip(true)}
                 onMouseLeave={() => setShowTip(false)}
@@ -214,15 +221,14 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
               </span>
               {showTip && (
                 <div style={{
-                  position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+                  position: "absolute", bottom: "calc(100% + 6px)", right: 0,
                   background: "oklch(0.25 0 0)", border: `1px solid ${BORDER}`,
-                  padding: "6px 8px", width: 180, zIndex: 100,
+                  padding: "6px 8px", width: 178, zIndex: 100,
                   fontSize: 9, color: FG, lineHeight: 1.5, pointerEvents: "none",
                 }}>
                   Muestra la actividad de mercado por hora. NYSE/NASDAQ opera Lun–Vie 9:30–16:00 ET. Cripto opera las 24 horas.
-                  {/* arrow */}
                   <span style={{
-                    position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+                    position: "absolute", top: "100%", right: 4,
                     borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
                     borderTop: `5px solid ${BORDER}`, width: 0, height: 0, display: "block",
                   }} />
@@ -231,74 +237,60 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
             </div>
           </div>
 
-          {/* Tabs */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-            {/* NYSE tab */}
+          {/* Tabs — short labels, no badge inside */}
+          <div style={{ display: "flex", gap: 2, marginBottom: 4 }}>
             <button
               onClick={() => setTab("nyse")}
               style={{
                 flex: 1, padding: "3px 0", fontSize: 9, fontWeight: 500, cursor: "pointer",
-                border: "none", background: tab === "nyse" ? "rgba(255,255,255,0.08)" : "transparent",
+                border: "none", background: "transparent",
                 color: tab === "nyse" ? FG : DIM,
-                borderBottom: tab === "nyse" ? `1px solid ${FG}` : `1px solid transparent`,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                borderBottom: tab === "nyse" ? `1px solid ${FG}` : `1px solid ${BORDER}`,
               }}
             >
-              NYSE · NASDAQ
-              {tab === "nyse" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-                  <span style={{
-                    width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                    background: nyseOpen ? GREEN : RED,
-                    boxShadow: nyseOpen ? `0 0 4px ${GREEN}` : `0 0 4px ${RED}`,
-                  }} />
-                  <span style={{ fontSize: 8, color: nyseOpen ? GREEN : RED, fontWeight: 600 }}>
-                    {nyseOpen ? "ABIERTO" : "CERRADO"}
-                  </span>
-                </span>
-              )}
+              NYSE
             </button>
-
-            {/* Crypto tab */}
             <button
               onClick={() => setTab("crypto")}
               style={{
                 flex: 1, padding: "3px 0", fontSize: 9, fontWeight: 500, cursor: "pointer",
-                border: "none", background: tab === "crypto" ? "rgba(255,255,255,0.08)" : "transparent",
+                border: "none", background: "transparent",
                 color: tab === "crypto" ? FG : DIM,
-                borderBottom: tab === "crypto" ? `1px solid ${FG}` : `1px solid transparent`,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                borderBottom: tab === "crypto" ? `1px solid ${FG}` : `1px solid ${BORDER}`,
               }}
             >
-              Cripto 24/7
-              {tab === "crypto" && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-                  <span style={{
-                    width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                    background: GREEN, boxShadow: `0 0 4px ${GREEN}`,
-                  }} />
-                  <span style={{ fontSize: 8, color: GREEN, fontWeight: 600 }}>ABIERTO</span>
-                </span>
-              )}
+              Cripto
             </button>
+          </div>
+
+          {/* Status line below tabs */}
+          <div style={{ marginBottom: 6, minHeight: 12 }}>
+            {tab === "nyse" ? (
+              <span style={{ fontSize: 8, color: DIM, letterSpacing: "0.05em" }}>
+                {nyseOpen ? "ABIERTO · hasta las 16:00 ET" : "CERRADO"}
+              </span>
+            ) : (
+              <span style={{ fontSize: 8, color: GREEN, letterSpacing: "0.05em" }}>ABIERTO · 24/7</span>
+            )}
           </div>
 
           {/* Tab content */}
           {tab === "nyse" ? (
-            nyseOpen ? (
-              <ActivityBars bars={stockBars} />
-            ) : (
-              <div style={{ height: 28, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.45, position: "relative" }}>
+            <div style={{ position: "relative" }}>
+              <div style={{ opacity: nyseOpen ? 1 : 0.35 }}>
                 <ActivityBars bars={stockBars} />
+              </div>
+              {!nyseOpen && (
                 <span style={{
-                  position: "absolute", fontSize: 9, color: RED, fontWeight: 600,
-                  background: "oklch(0.1448 0 0 / 0.85)", padding: "1px 6px",
-                  letterSpacing: "0.06em",
+                  position: "absolute", inset: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 8, color: RED, fontWeight: 600, letterSpacing: "0.06em",
+                  pointerEvents: "none",
                 }}>
                   Mercado cerrado
                 </span>
-              </div>
-            )
+              )}
+            </div>
           ) : (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 28, paddingTop: 4 }}>
               <span style={{ fontSize: 9, color: MUTED }}>Variación 24h</span>
