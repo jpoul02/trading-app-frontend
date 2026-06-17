@@ -304,6 +304,7 @@ export default function MT5Page() {
   const [orderPrice, setOrderPrice] = useState<MT5Price | null>(null);
   const [orderPriceLoading, setOrderPriceLoading] = useState(false);
   const [closeLoadingTicket, setCloseLoadingTicket] = useState<number | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState(30); // seconds; 0 = manual
 
   async function fetchStatus(silent = false) {
     try {
@@ -436,21 +437,29 @@ export default function MT5Page() {
     fetchStatus();
     fetchPositions();
     fetchHistory();
-    fetchCandles();
-    fetchIndicators();
 
     const s = setInterval(() => fetchStatus(true), 10_000);
     const p = setInterval(fetchPositions, 5_000);
     const h = setInterval(fetchHistory, 30_000);
-    const c = setInterval(() => fetchCandles(), 30_000);
 
     return () => {
       clearInterval(s);
       clearInterval(p);
       clearInterval(h);
-      clearInterval(c);
     };
   }, []);
+
+  useEffect(() => {
+    fetchCandles();
+    fetchIndicators();
+    if (refreshInterval === 0) return;
+    const interval = setInterval(() => {
+      fetchCandles();
+      fetchIndicators();
+    }, refreshInterval * 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartSymbol, chartTf, refreshInterval]);
 
   const connected = status?.connected ?? false;
   const cur = status?.currency ?? "USD";
@@ -861,26 +870,45 @@ export default function MT5Page() {
             </button>
           </div>
 
-          {/* Timeframe buttons */}
-          <div className="flex gap-2 flex-wrap mb-4">
-            {CHART_TIMEFRAMES.map((tf) => (
-              <button
-                key={tf}
-                onClick={() => {
-                  setChartTf(tf);
-                  fetchCandles(chartSymbol, tf);
-                  fetchIndicators(chartSymbol, tf);
-                }}
-                className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                style={{
-                  background: chartTf === tf ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
-                  border: `1px solid ${chartTf === tf ? "var(--blue)" : "var(--border)"}`,
-                  color: chartTf === tf ? "var(--blue)" : "var(--text-muted)",
-                }}
-              >
-                {tf}
-              </button>
-            ))}
+          {/* Timeframe buttons + refresh selector */}
+          <div className="flex gap-2 flex-wrap items-center justify-between mb-4">
+            <div className="flex gap-2 flex-wrap">
+              {CHART_TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => {
+                    setChartTf(tf);
+                    fetchCandles(chartSymbol, tf);
+                    fetchIndicators(chartSymbol, tf);
+                  }}
+                  className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  style={{
+                    background: chartTf === tf ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
+                    border: `1px solid ${chartTf === tf ? "var(--blue)" : "var(--border)"}`,
+                    color: chartTf === tf ? "var(--blue)" : "var(--text-muted)",
+                  }}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 items-center">
+              <span className="text-xs mr-1" style={{ color: "var(--text-muted)" }}>Refresh:</span>
+              {([{ label: "10s", value: 10 }, { label: "30s", value: 30 }, { label: "1m", value: 60 }, { label: "5m", value: 300 }, { label: "Manual", value: 0 }] as const).map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setRefreshInterval(value)}
+                  className="px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  style={{
+                    background: refreshInterval === value ? "var(--blue)" : "var(--bg-secondary)",
+                    border: `1px solid ${refreshInterval === value ? "var(--blue)" : "var(--border)"}`,
+                    color: refreshInterval === value ? "#fff" : "var(--text-muted)",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Chart label */}
