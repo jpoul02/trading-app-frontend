@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { LiveBadge } from "../components/LiveBadge";
+import api from "@/lib/api";
 
 interface CryptoPrice {
   id?: string;
@@ -51,10 +52,10 @@ export default function MarketsPage() {
     if (!silent) { setLoading(true); setError(false); }
     try {
       const [cRes, sRes] = await Promise.all([
-        fetch("http://localhost:8000/api/market/prices"),
-        fetch("http://localhost:8000/api/market/stocks"),
+        api.get('/api/market/prices'),
+        api.get('/api/market/stocks'),
       ]);
-      const [cData, sData] = await Promise.all([cRes.json(), sRes.json()]);
+      const [cData, sData] = [cRes.data, sRes.data];
       setCryptos(cData);
       setStocks(sData);
       setLastUpdated(new Date());

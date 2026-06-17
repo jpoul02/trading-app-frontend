@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
+import api from "@/lib/api";
 
 export interface PortfolioWizardProps {
   onComplete: () => void;
@@ -122,8 +123,8 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
     async function fetchPrices() {
       try {
         const [cRes, sRes] = await Promise.allSettled([
-          fetch("http://localhost:8000/api/market/prices").then((r) => r.json()),
-          fetch("http://localhost:8000/api/market/stocks").then((r) => r.json()),
+          api.get('/api/market/prices').then((r) => r.data),
+          api.get('/api/market/stocks').then((r) => r.data),
         ]);
         const pm: Record<string, number> = {};
         if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
@@ -159,11 +160,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
     if (!qty || !price || !asset) return;
     setAdding((prev) => ({ ...prev, [symbol]: true }));
     try {
-      await fetch("http://localhost:8000/api/portfolio/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, quantity: qty, buy_price: price, asset_type: asset.type }),
-      });
+      await api.post('/api/portfolio/add', { symbol, quantity: qty, buy_price: price, asset_type: asset.type });
       setAddedAssets((prev) => new Set([...prev, symbol]));
     } catch {
       // silently fail

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,7 +65,6 @@ interface Candle {
 const GLOSSARY = [
   {
     key: "balance",
-    icon: "💰",
     term: "Balance",
     short: "El dinero total en tu cuenta.",
     detail:
@@ -72,7 +72,6 @@ const GLOSSARY = [
   },
   {
     key: "equity",
-    icon: "📊",
     term: "Equity",
     short: "Balance + ganancias/pérdidas actuales de posiciones abiertas.",
     detail:
@@ -80,7 +79,6 @@ const GLOSSARY = [
   },
   {
     key: "margin",
-    icon: "🔒",
     term: "Margin (Margen)",
     short: "El dinero que el broker reserva como garantía.",
     detail:
@@ -88,7 +86,6 @@ const GLOSSARY = [
   },
   {
     key: "margin_free",
-    icon: "🟢",
     term: "Margin Libre",
     short: "Capital disponible para abrir nuevas operaciones.",
     detail:
@@ -96,7 +93,6 @@ const GLOSSARY = [
   },
   {
     key: "leverage",
-    icon: "⚡",
     term: "Leverage (Apalancamiento)",
     short: "Con 1:100 controlás $100 por cada $1 tuyo.",
     detail:
@@ -104,7 +100,6 @@ const GLOSSARY = [
   },
   {
     key: "profit",
-    icon: "📈",
     term: "Profit Flotante",
     short: "Ganancia o pérdida de posiciones abiertas ahora mismo.",
     detail:
@@ -116,27 +111,22 @@ const QUICK_SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"];
 
 const FOREX_CONCEPTS = [
   {
-    icon: "📊",
     title: "Pips",
     body: "La unidad mínima de movimiento de precio. En EURUSD, 1 pip = 0.0001. Si el precio va de 1.0850 a 1.0851, subió 1 pip. En pares con JPY, 1 pip = 0.01.",
   },
   {
-    icon: "📦",
     title: "Lotes (Lot Size)",
     body: "Tamaño de la operación. 1 lote estándar = 100,000 unidades. Mini lote = 10,000. Micro lote = 1,000. En MT5 podés operar desde 0.01 lotes.",
   },
   {
-    icon: "🛑",
     title: "Stop Loss",
     body: "Orden automática para cerrar la posición si perdés X cantidad. Protege tu cuenta de pérdidas catastróficas. Siempre poné Stop Loss antes de abrir un trade.",
   },
   {
-    icon: "🎯",
     title: "Take Profit",
     body: "Cierra automáticamente cuando alcanzás tu ganancia objetivo. No necesitás estar mirando la pantalla — MT5 lo ejecuta solo.",
   },
   {
-    icon: "📈",
     title: "Long / Short",
     body: "Long (BUY) = apostás a que el precio sube y ganás si sube. Short (SELL) = apostás a que baja y ganás si baja. En Forex ganás en ambas direcciones.",
   },
@@ -146,7 +136,14 @@ const FOREX_CONCEPTS = [
 
 const CHART_TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
 
-function CandleChart({ candles }: { candles: Candle[] }) {
+function getPriceDec(range: number): number {
+  if (range < 0.01) return 5;
+  if (range < 1) return 4;
+  if (range < 100) return 2;
+  return 0;
+}
+
+function CandleChart({ candles }: Readonly<{ candles: Candle[] }>) {
   if (candles.length === 0) {
     return (
       <div
@@ -177,14 +174,14 @@ function CandleChart({ candles }: { candles: Candle[] }) {
   const candleW = Math.max(3, gap * 0.75);
 
   const yTicks = Array.from({ length: 6 }, (_, i) => rawMin + (rawRange / 5) * i);
-  const priceDec = rawRange < 0.01 ? 5 : rawRange < 1 ? 4 : rawRange < 100 ? 2 : 0;
+  const priceDec = getPriceDec(rawRange);
   const xStep = Math.max(1, Math.ceil(candles.length / 6));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 420 }}>
       {/* Grid lines — use style={} so CSS vars resolve */}
-      {yTicks.map((p, i) => (
-        <g key={i}>
+      {yTicks.map((p) => (
+        <g key={p}>
           <line
             x1={PAD.left} y1={toY(p)}
             x2={W - PAD.right} y2={toY(p)}
@@ -258,7 +255,7 @@ function fmt(n?: number) {
     : "—";
 }
 
-function Skeleton({ h = "h-28" }: { h?: string }) {
+function Skeleton({ h = "h-28" }: Readonly<{ h?: string }>) {
   return (
     <div
       className={`animate-pulse rounded-xl ${h}`}
@@ -286,10 +283,10 @@ export default function MT5Page() {
 
   async function fetchStatus(silent = false) {
     try {
-      const res = await fetch("http://localhost:8000/api/mt5/status");
-      setStatus(await res.json());
+      const { data } = await api.get('/api/mt5/status');
+      setStatus(data);
     } catch {
-      setStatus({ connected: false, error: "No se pudo conectar al servidor (puerto 8000)" });
+      setStatus({ connected: false, error: "No se pudo conectar al servidor" });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -297,26 +294,21 @@ export default function MT5Page() {
 
   async function fetchPositions() {
     try {
-      const res = await fetch("http://localhost:8000/api/mt5/positions");
-      const data = await res.json();
+      const { data } = await api.get('/api/mt5/positions');
       setPositions(data.positions ?? []);
     } catch {}
   }
 
   async function fetchHistory() {
     try {
-      const res = await fetch("http://localhost:8000/api/mt5/history");
-      const data = await res.json();
+      const { data } = await api.get('/api/mt5/history');
       setDeals(data.deals ?? []);
     } catch {}
   }
 
   async function fetchCandles(sym = chartSymbol, tf = chartTf) {
     try {
-      const res = await fetch(
-        `http://localhost:8000/api/mt5/candles/${sym}?timeframe=${tf}&count=100`
-      );
-      const data = await res.json();
+      const { data } = await api.get(`/api/mt5/candles/${sym}`, { params: { timeframe: tf, count: 100 } });
       if (Array.isArray(data)) setCandles(data);
     } catch {}
   }
@@ -327,8 +319,8 @@ export default function MT5Page() {
     setPriceLoading(true);
     setPriceResult(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/mt5/price/${sym}`);
-      setPriceResult(await res.json());
+      const { data } = await api.get(`/api/mt5/price/${sym}`);
+      setPriceResult(data);
     } catch {
       setPriceResult({ connected: false, error: "Error de red al buscar el precio" });
     } finally {
@@ -372,7 +364,7 @@ export default function MT5Page() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            📈 MetaTrader 5
+            MetaTrader 5
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             Cuenta demo en vivo · {status?.server ?? "MetaQuotes-Demo"}
@@ -406,12 +398,12 @@ export default function MT5Page() {
       {/* ── Loading skeleton ────────────────────────────────────────────── */}
       {loading && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h="h-24" />)}
+          {(["sk-a","sk-b","sk-c","sk-d"] as const).map((k) => <Skeleton key={k} h="h-24" />)}
         </div>
       )}
 
       {/* ── Connection error ────────────────────────────────────────────── */}
-      {!loading && status && !connected && (
+      {status && connected === false && !loading && (
         <div
           className="mb-6 p-4 rounded-xl"
           style={{ background: "rgba(255,71,87,0.08)", border: "1px solid var(--red)" }}
@@ -489,7 +481,6 @@ export default function MT5Page() {
                   className="w-full flex items-center gap-3 px-5 py-4 text-left cursor-pointer transition-colors hover:opacity-80"
                   style={{ background: "transparent", border: "none", fontFamily: "inherit" }}
                 >
-                  <span className="text-xl shrink-0">{item.icon}</span>
                   <div className="flex-1">
                     <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
                       {item.term}
@@ -622,10 +613,9 @@ export default function MT5Page() {
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
           >
             <p style={{ color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--green)", fontWeight: 600 }}>Bid</span> = precio al que el broker te compra (vos vendés).{" "}
-              <span style={{ color: "var(--red)", fontWeight: 600 }}>Ask</span> = precio al que el broker te vende (vos comprás).{" "}
-              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Spread</span> = la diferencia entre ambos —
-              esa es la comisión implícita del broker.
+              <span style={{ color: "var(--green)", fontWeight: 600 }}>Bid</span>{" "}= precio al que el broker te compra (vos vendés).{" "}
+              <span style={{ color: "var(--red)", fontWeight: 600 }}>Ask</span>{" "}= precio al que el broker te vende (vos comprás).{" "}
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Spread</span>{" "}= la diferencia entre ambos — esa es la comisión implícita del broker.
             </p>
             <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
               Ejemplo: EURUSD spread 1.2 pips + 1 lote (100,000 EUR) →
@@ -983,12 +973,9 @@ export default function MT5Page() {
               className="rounded-xl p-5"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">{c.icon}</span>
-                <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {c.title}
-                </p>
-              </div>
+              <p className="font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                {c.title}
+              </p>
               <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {c.body}
               </p>

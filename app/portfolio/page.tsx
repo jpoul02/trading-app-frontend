@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -236,8 +237,7 @@ export default function PortfolioPage() {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch("http://localhost:8000/api/portfolio/");
-      const data = await res.json();
+      const { data } = await api.get('/api/portfolio/');
       const positions: Position[] = Array.isArray(data) ? data : (data.positions ?? []);
       setPortfolio({
         total_value: Array.isArray(data) ? 0 : (data.total_value ?? 0),
@@ -256,11 +256,7 @@ export default function PortfolioPage() {
     if (!symbol || !quantity || !buyPrice) return;
     setAdding(true);
     try {
-      await fetch("http://localhost:8000/api/portfolio/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: symbol.toUpperCase(), quantity: Number(quantity), buy_price: Number(buyPrice), asset_type: type }),
-      });
+      await api.post('/api/portfolio/add', { symbol: symbol.toUpperCase(), quantity: Number(quantity), buy_price: Number(buyPrice), asset_type: type });
       setSymbol(""); setQuantity(""); setBuyPrice("");
       fetchPortfolio();
     } catch { /* silently fail */ } finally { setAdding(false); }
@@ -268,7 +264,7 @@ export default function PortfolioPage() {
 
   async function deletePosition(id: string) {
     try {
-      await fetch(`http://localhost:8000/api/portfolio/${id}`, { method: "DELETE" });
+      await api.delete(`/api/portfolio/${id}`);
       fetchPortfolio();
     } catch { /* silently fail */ }
   }

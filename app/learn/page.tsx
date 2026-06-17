@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 
 interface Lesson {
   id: number;
@@ -47,10 +48,10 @@ export default function LearnPage() {
     setError(false);
     try {
       const [lRes, gRes] = await Promise.all([
-        fetch("http://localhost:8000/api/education/lessons"),
-        fetch("http://localhost:8000/api/education/glossary"),
+        api.get('/api/education/lessons'),
+        api.get('/api/education/glossary'),
       ]);
-      const [lData, gData] = await Promise.all([lRes.json(), gRes.json()]);
+      const [lData, gData] = [lRes.data, gRes.data];
       setLessons(lData);
       setGlossary(gData);
     } catch {
@@ -65,8 +66,7 @@ export default function LearnPage() {
     setLessonLoading(true);
     setLessonContent("");
     try {
-      const res = await fetch(`http://localhost:8000/api/education/lessons/${lesson.id}`);
-      const data = await res.json();
+      const { data } = await api.get(`/api/education/lessons/${lesson.id}`);
       setLessonContent(data.content ?? "");
     } catch {
       setLessonContent("No se pudo cargar el contenido.");

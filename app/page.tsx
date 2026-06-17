@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, animate } from "framer-motion";
+import api from "@/lib/api";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -36,19 +37,18 @@ interface TrendingItem {
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const ACCENT = "#3b82f6";   // blue — primary accent, links, active states
-const GREEN  = "#16c784";   // TradingView bullish green
-const RED    = "#ea3943";   // TradingView bearish red
-const BLUE   = "#818cf8";   // indigo — secondary accent
-const TEXT   = "#f0f0f0";   // primary text
-const TEXT2  = "#a1a1aa";   // secondary text
-const MUTED  = "#71717a";   // muted
-const DIM    = "#3f3f46";   // very muted / subtle borders
-const CARD   = "#202024";   // card background
-const CARD2  = "#18181b";   // page background / deeper bg
-const BORDER = "rgba(255,255,255,0.07)";
+const ACCENT = "oklch(0.5555 0 0)";  // --primary: neutral mid-gray
+const GREEN  = "#16c784";             // TradingView bullish green
+const RED    = "#ea3943";             // TradingView bearish red
+const BLUE   = "oklch(0.7090 0 0)";  // --muted-foreground: lighter gray
+const TEXT   = "oklch(0.9851 0 0)";  // --foreground
+const TEXT2  = "oklch(0.7090 0 0)";  // --muted-foreground
+const MUTED  = "oklch(0.5555 0 0)";  // --primary
+const DIM    = "oklch(0.3715 0 0)";  // --accent
+const CARD   = "oklch(0.2134 0 0)";  // --card
+const CARD2  = "oklch(0.1448 0 0)";  // --background
+const BORDER = "oklch(0.3407 0 0)";  // --border
 
-// Legacy alias so existing JSX using AMBER gets ACCENT
 const AMBER  = ACCENT;
 
 const EASE: [number, number, number, number] = [0.23, 1, 0.32, 1];
@@ -56,8 +56,8 @@ const EASE: [number, number, number, number] = [0.23, 1, 0.32, 1];
 const TERM: React.CSSProperties = {
   background: CARD,
   border: `1px solid ${BORDER}`,
-  borderRadius: 6,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+  borderRadius: 0,
+  boxShadow: "none",
 };
 
 function brutalCard(color: string): React.CSSProperties {
@@ -65,8 +65,8 @@ function brutalCard(color: string): React.CSSProperties {
     background: CARD2,
     border: `1px solid ${BORDER}`,
     borderLeft: `3px solid ${color}`,
-    borderRadius: 6,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+    borderRadius: 0,
+    boxShadow: "none",
   };
 }
 
@@ -201,7 +201,7 @@ function ChangeBadge({ value }: { value: number }) {
       display: "inline-flex", alignItems: "center", gap: 3,
       padding: "2px 7px",
       color: c, fontSize: 11, fontWeight: 600,
-      background: `${c}12`, borderRadius: 4, flexShrink: 0,
+      background: `${c}12`, borderRadius: 0, flexShrink: 0,
     }}>
       {pos ? "↑" : "↓"} {Math.abs(value)?.toFixed(2)}%
     </span>
@@ -218,11 +218,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function PulseLoader() {
   return (
-    <div style={{ height: 4, background: "rgba(255,255,255,0.04)", overflow: "hidden", margin: "8px 0", borderRadius: 2 }}>
+    <div style={{ height: 4, background: "rgba(255,255,255,0.04)", overflow: "hidden", margin: "8px 0", borderRadius: 0 }}>
       <motion.div
         animate={{ x: ["-100%", "200%"] }}
         transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-        style={{ width: "40%", height: "100%", background: "rgba(59,130,246,0.25)", borderRadius: 2 }}
+        style={{ width: "40%", height: "100%", background: `${MUTED}40`, borderRadius: 0 }}
       />
     </div>
   );
@@ -250,13 +250,13 @@ function MarketTicker({ cryptos }: { cryptos: CryptoPrice[] }) {
   const items = [...cryptos, ...cryptos, ...cryptos];
   return (
     <div style={{ ...TERM, marginBottom: 18, overflow: "hidden", height: 38, display: "flex", alignItems: "center" }}>
-      <div style={{ flexShrink: 0, padding: "0 14px", borderRight: `1px solid ${BORDER}`, height: "100%", display: "flex", alignItems: "center", gap: 6, background: `${ACCENT}08` }}>
+      <div style={{ flexShrink: 0, padding: "0 14px", borderRight: `1px solid ${BORDER}`, height: "100%", display: "flex", alignItems: "center", gap: 6, background: `${CARD2}` }}>
         <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }} style={{ width: 5, height: 5, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
         <span style={{ fontSize: 11, color: TEXT2, fontWeight: 500 }}>Live</span>
       </div>
       <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(90deg, ${CARD}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(-90deg, ${CARD}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 32, background: `linear-gradient(90deg, ${CARD} 60%, transparent)`, zIndex: 2, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 32, background: `linear-gradient(-90deg, ${CARD} 60%, transparent)`, zIndex: 2, pointerEvents: "none" }} />
         <motion.div
           animate={{ x: ["0%", "-33.33%"] }}
           transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
@@ -366,12 +366,12 @@ export default function DashboardPage() {
     if (!silent) { setLoading(true); setError(false); }
     const shouldRefreshFG = Date.now() - lastFearGreedFetch.current >= 300_000;
     const [pR, sR, fR, tR] = await Promise.allSettled([
-      fetch("http://localhost:8000/api/market/prices").then(r => r.json()),
-      fetch("http://localhost:8000/api/market/stocks").then(r => r.json()),
+      api.get('/api/market/prices').then(r => r.data),
+      api.get('/api/market/stocks').then(r => r.data),
       shouldRefreshFG
-        ? fetch("http://localhost:8000/api/market/fear-greed").then(r => r.json())
+        ? api.get('/api/market/fear-greed').then(r => r.data)
         : Promise.resolve(null),
-      fetch("http://localhost:8000/api/market/trending").then(r => r.json()),
+      api.get('/api/market/trending').then(r => r.data),
     ]);
     if (pR.status === "fulfilled") setCryptos(pR.value.slice(0, 8));
     if (sR.status === "fulfilled") setStocks(sR.value);
@@ -423,7 +423,7 @@ export default function DashboardPage() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Live badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: `${GREEN}10`, border: `1px solid ${GREEN}25`, borderRadius: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: `${GREEN}10`, border: `1px solid ${GREEN}25`, borderRadius: 0 }}>
             <motion.span
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -434,11 +434,8 @@ export default function DashboardPage() {
 
           <button
             onClick={() => fetchData()}
-            style={{ padding: "7px 16px", border: `1px solid ${BORDER}`, background: CARD, color: TEXT2, fontSize: 12, fontWeight: 500, cursor: "pointer", borderRadius: 6, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+            style={{ padding: "7px 16px", border: `1px solid ${BORDER}`, background: CARD, color: TEXT2, fontSize: 12, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "inherit" }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" />
-            </svg>
             Actualizar
           </button>
         </div>
@@ -449,12 +446,12 @@ export default function DashboardPage() {
         {error && (
           <motion.div
             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            style={{ marginBottom: 16, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${RED}30`, background: `${RED}0a`, borderRadius: 6 }}
+            style={{ marginBottom: 16, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${RED}30`, background: `${RED}0a`, borderRadius: 0 }}
           >
             <span style={{ color: RED, fontSize: 13, fontWeight: 500 }}>
               No se pudo conectar al servidor (puerto 8000)
             </span>
-            <button onClick={() => fetchData()} style={{ border: `1px solid ${RED}40`, color: RED, padding: "5px 14px", fontWeight: 600, background: "transparent", cursor: "pointer", fontSize: 12, fontFamily: "inherit", borderRadius: 4 }}>
+            <button onClick={() => fetchData()} style={{ border: `1px solid ${RED}40`, color: RED, padding: "5px 14px", fontWeight: 600, background: "transparent", cursor: "pointer", fontSize: 12, fontFamily: "inherit", borderRadius: 0 }}>
               Reintentar
             </button>
           </motion.div>
@@ -660,10 +657,7 @@ export default function DashboardPage() {
                       <p style={{ color: TEXT, fontWeight: 700, fontSize: 11, letterSpacing: "0.04em" }}>{name}</p>
                       <p style={{ color: DIM, fontSize: 8, letterSpacing: "0.12em" }}>{symbol.toUpperCase()}</p>
                     </div>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" opacity="0.5">
-                      <polyline points="2,12 6,7 10,9 14,3" stroke={GREEN} strokeWidth="1.5" strokeLinecap="square" />
-                      <polyline points="11,3 14,3 14,6" stroke={GREEN} strokeWidth="1.5" strokeLinecap="square" />
-                    </svg>
+                    <span style={{ fontSize: 9, color: GREEN, fontWeight: 700, letterSpacing: "0.08em" }}>▲</span>
                   </motion.div>
                 );
               })

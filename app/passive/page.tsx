@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LiveBadge } from "../components/LiveBadge";
+import api from "@/lib/api";
 
 interface ETF {
   symbol: string;
@@ -57,10 +58,10 @@ export default function PassivePage() {
     setError(false);
     try {
       const [etfRes, stakingRes] = await Promise.all([
-        fetch("http://localhost:8000/api/passive/etfs"),
-        fetch("http://localhost:8000/api/passive/staking"),
+        api.get('/api/passive/etfs'),
+        api.get('/api/passive/staking'),
       ]);
-      const [etfData, stakingData] = await Promise.all([etfRes.json(), stakingRes.json()]);
+      const [etfData, stakingData] = [etfRes.data, stakingRes.data];
       setEtfs(etfData);
       setStaking(stakingData);
       setLastUpdated(new Date());
@@ -73,8 +74,7 @@ export default function PassivePage() {
 
   async function fetchEtfsSilent() {
     try {
-      const res = await fetch("http://localhost:8000/api/passive/etfs");
-      const data = await res.json();
+      const { data } = await api.get('/api/passive/etfs');
       setEtfs(data);
       setLastUpdated(new Date());
     } catch {}
@@ -82,8 +82,7 @@ export default function PassivePage() {
 
   async function fetchStakingSilent() {
     try {
-      const res = await fetch("http://localhost:8000/api/passive/staking");
-      const data = await res.json();
+      const { data } = await api.get('/api/passive/staking');
       setStaking(data);
     } catch {}
   }
@@ -91,16 +90,11 @@ export default function PassivePage() {
   async function calcDCA() {
     setDcaLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/passive/dca-calculator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          monthly_amount: Number(monthly),
-          years: Number(years),
-          annual_return: Number(rate),
-        }),
+      const { data } = await api.post('/api/passive/dca-calculator', {
+        monthly_amount: Number(monthly),
+        years: Number(years),
+        annual_return: Number(rate),
       });
-      const data = await res.json();
       setDcaResult(data);
     } catch {
       setDcaResult(null);
