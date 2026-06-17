@@ -158,9 +158,9 @@ function CandleChart({ candles }: { candles: Candle[] }) {
     );
   }
 
-  const W = 800;
-  const H = 300;
-  const PAD = { top: 12, right: 16, bottom: 28, left: 64 };
+  const W = 900;
+  const H = 420;
+  const PAD = { top: 16, right: 20, bottom: 32, left: 72 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
 
@@ -168,34 +168,20 @@ function CandleChart({ candles }: { candles: Candle[] }) {
   const rawMin = Math.min(...prices);
   const rawMax = Math.max(...prices);
   const rawRange = rawMax - rawMin || 1;
-  // Pad 10% vertically so candles don't hug top/bottom edges
   const vPad = rawRange * 0.1;
   const minP = rawMin - vPad;
-  const maxP = rawMax + vPad;
-  const priceRange = maxP - minP;
-
-  console.log('[candles] minPrice:', rawMin, 'maxPrice:', rawMax, 'range:', rawRange, 'vPad:', vPad);
+  const priceRange = rawRange + vPad * 2;
 
   const toY = (p: number) => PAD.top + chartH - ((p - minP) / priceRange) * chartH;
   const gap = chartW / candles.length;
-  const candleW = Math.max(2, gap * 0.7);
+  const candleW = Math.max(3, gap * 0.75);
 
-  const yTicks = Array.from({ length: 5 }, (_, i) => rawMin + (rawRange / 4) * i);
+  const yTicks = Array.from({ length: 6 }, (_, i) => rawMin + (rawRange / 5) * i);
   const priceDec = rawRange < 0.01 ? 5 : rawRange < 1 ? 4 : rawRange < 100 ? 2 : 0;
   const xStep = Math.max(1, Math.ceil(candles.length / 6));
 
-  // Log first candle position for debugging
-  if (candles.length > 0) {
-    const c0 = candles[0];
-    const openY0 = toY(c0.open);
-    const closeY0 = toY(c0.close);
-    const bodyH0 = Math.max(1, Math.abs(closeY0 - openY0));
-    const color0 = c0.close >= c0.open ? "var(--green)" : "var(--red)";
-    console.log('[candle 0]', { x: PAD.left, bodyTop: Math.min(openY0, closeY0), bodyHeight: bodyH0, color: color0, open: c0.open, close: c0.close });
-  }
-
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 350 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 420 }}>
       {/* Grid lines — use style={} so CSS vars resolve */}
       {yTicks.map((p, i) => (
         <g key={i}>
@@ -331,10 +317,7 @@ export default function MT5Page() {
         `http://localhost:8000/api/mt5/candles/${sym}?timeframe=${tf}&count=100`
       );
       const data = await res.json();
-      if (Array.isArray(data)) {
-        console.log('[candles] fetched:', data.length, 'first:', data[0]);
-        setCandles(data);
-      }
+      if (Array.isArray(data)) setCandles(data);
     } catch {}
   }
 
