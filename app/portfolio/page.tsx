@@ -16,9 +16,9 @@ interface Position {
   quantity: number;
   buy_price: number;
   current_price: number;
-  type: string;
+  asset_type: string;
   pnl: number;
-  pnl_percent: number;
+  pnl_pct: number;
 }
 
 interface PortfolioSummary {
@@ -131,8 +131,8 @@ function calcDiversificationScore(positions: Position[], totalCurrent: number): 
   if (positions.length === 0) return 0;
   let score = 0;
   if (positions.length > 1) score += 30;
-  const hasCrypto = positions.some((p) => p.type === "crypto");
-  const hasNonCrypto = positions.some((p) => p.type === "stock" || p.type === "etf");
+  const hasCrypto = positions.some((p) => p.asset_type === "crypto");
+  const hasNonCrypto = positions.some((p) => p.asset_type === "stock" || p.asset_type === "etf");
   if (hasCrypto && hasNonCrypto) score += 30;
   if (positions.length > 3) score += 20;
   if (totalCurrent > 0) {
@@ -144,9 +144,9 @@ function calcDiversificationScore(positions: Position[], totalCurrent: number): 
 
 function calcRiskLevel(positions: Position[]): string {
   if (positions.length === 0) return "Sin datos";
-  const hasCrypto = positions.some((p) => p.type === "crypto");
-  const hasEtf = positions.some((p) => p.type === "etf");
-  const cryptos = positions.filter((p) => p.type === "crypto").map((p) => p.symbol.toUpperCase());
+  const hasCrypto = positions.some((p) => p.asset_type === "crypto");
+  const hasEtf = positions.some((p) => p.asset_type === "etf");
+  const cryptos = positions.filter((p) => p.asset_type === "crypto").map((p) => p.symbol.toUpperCase());
   const hasAltcoins = cryptos.some((s) => !["BTC", "ETH"].includes(s));
   if (!hasCrypto && hasEtf) return "Bajo";
   if (hasCrypto && !hasAltcoins && hasEtf) return "Moderado";
@@ -166,8 +166,8 @@ function getConcentrationAlert(positions: Position[], totalCurrent: number): { s
 
 function getRecommendations(positions: Position[]): Array<{ text: string; reason: string }> {
   const recs: Array<{ text: string; reason: string }> = [];
-  const hasCrypto = positions.some((p) => p.type === "crypto");
-  const hasEtf = positions.some((p) => p.type === "etf");
+  const hasCrypto = positions.some((p) => p.asset_type === "crypto");
+  const hasEtf = positions.some((p) => p.asset_type === "etf");
   if (hasCrypto) recs.push({ text: "Gestión de riesgo en cripto", reason: "Tenés criptomonedas en tu portafolio" });
   if (hasEtf) recs.push({ text: "Dollar Cost Averaging (DCA)", reason: "La estrategia más recomendada para ETFs" });
   if (positions.length <= 1) recs.push({ text: "Diversificación de portafolio", reason: "Tenés pocos activos — reducí tu riesgo" });
@@ -259,7 +259,7 @@ export default function PortfolioPage() {
       await fetch("http://localhost:8000/api/portfolio/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: symbol.toUpperCase(), quantity: Number(quantity), buy_price: Number(buyPrice), type }),
+        body: JSON.stringify({ symbol: symbol.toUpperCase(), quantity: Number(quantity), buy_price: Number(buyPrice), asset_type: type }),
       });
       setSymbol(""); setQuantity(""); setBuyPrice("");
       fetchPortfolio();
@@ -367,7 +367,7 @@ export default function PortfolioPage() {
               <ul className="space-y-1.5 text-xs">
                 {[
                   { met: positions.length > 1, text: "Más de 1 activo (+30)" },
-                  { met: positions.some(p => p.type === "crypto") && positions.some(p => p.type !== "crypto"), text: "Cripto + Acciones/ETFs (+30)" },
+                  { met: positions.some(p => p.asset_type === "crypto") && positions.some(p => p.asset_type !== "crypto"), text: "Cripto + Acciones/ETFs (+30)" },
                   { met: positions.length > 3, text: "Más de 3 activos (+20)" },
                   { met: maxConc <= 0.6, text: "Ningún activo supera el 60% (+20)" },
                 ].map(({ met, text }) => (
@@ -498,7 +498,7 @@ export default function PortfolioPage() {
                     <tr key={p.id} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="px-3 py-3">
                         <p className="font-bold" style={{ color: "var(--text-primary)" }}>{p.symbol}</p>
-                        <p className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>{p.type}</p>
+                        <p className="text-xs capitalize" style={{ color: "var(--text-muted)" }}>{p.asset_type}</p>
                       </td>
                       <td className="px-3 py-3" style={{ color: "var(--text-muted)" }}>{p.quantity}</td>
                       <td className="px-3 py-3" style={{ color: "var(--text-muted)" }}>${p.buy_price.toLocaleString("en-US")}</td>
@@ -506,8 +506,8 @@ export default function PortfolioPage() {
                       <td className="px-3 py-3 font-semibold" style={{ color: p.pnl >= 0 ? "var(--green)" : "var(--red)" }}>
                         {p.pnl >= 0 ? "+" : ""}${p.pnl.toFixed(2)}
                       </td>
-                      <td className="px-3 py-3 font-semibold" style={{ color: p.pnl_percent >= 0 ? "var(--green)" : "var(--red)" }}>
-                        {p.pnl_percent >= 0 ? "+" : ""}{p.pnl_percent?.toFixed(2)}%
+                      <td className="px-3 py-3 font-semibold" style={{ color: p.pnl_pct >= 0 ? "var(--green)" : "var(--red)" }}>
+                        {p.pnl_pct >= 0 ? "+" : ""}{p.pnl_pct?.toFixed(2)}%
                       </td>
                       <td className="px-3 py-3">
                         <button onClick={() => deletePosition(p.id)}

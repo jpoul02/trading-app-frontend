@@ -162,7 +162,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
       await fetch("http://localhost:8000/api/portfolio/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, quantity: qty, buy_price: price, type: asset.type }),
+        body: JSON.stringify({ symbol, quantity: qty, buy_price: price, asset_type: asset.type }),
       });
       setAddedAssets((prev) => new Set([...prev, symbol]));
     } catch {
