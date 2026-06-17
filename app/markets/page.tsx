@@ -4,21 +4,22 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 interface CryptoPrice {
-  id: string;
-  symbol: string;
-  name: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
+  id?: string;
+  symbol?: string;
+  name?: string;
+  current_price?: number;
+  price_change_percentage_24h?: number;
+  market_cap?: number;
   image?: string;
   rank?: number;
 }
 
 interface Stock {
-  ticker: string;
-  name: string;
-  price: number;
-  change_percent: number;
+  ticker?: string;
+  symbol?: string;
+  name?: string;
+  price?: number;
+  change_percent?: number;
 }
 
 function Skeleton({ rows = 5 }: { rows?: number }) {
@@ -65,16 +66,18 @@ export default function MarketsPage() {
     fetchData();
   }, []);
 
+  const query = search.toLowerCase();
+
   const filteredCryptos = cryptos.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.symbol.toLowerCase().includes(search.toLowerCase())
+      (c.name ?? c.symbol ?? "").toLowerCase().includes(query) ||
+      (c.symbol ?? "").toLowerCase().includes(query)
   );
 
   const filteredStocks = stocks.filter(
     (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.ticker.toLowerCase().includes(search.toLowerCase())
+      (s.name ?? s.ticker ?? s.symbol ?? "").toLowerCase().includes(query) ||
+      (s.ticker ?? s.symbol ?? "").toLowerCase().includes(query)
   );
 
   return (
@@ -181,7 +184,7 @@ export default function MarketsPage() {
                       {c.image && (
                         <Image
                           src={c.image}
-                          alt={c.name}
+                          alt={c.name ?? ""}
                           width={24}
                           height={24}
                           className="rounded-full"
@@ -203,13 +206,13 @@ export default function MarketsPage() {
                   </td>
                   <td
                     className="text-right px-4 py-3 font-semibold"
-                    style={{ color: c.price_change_percentage_24h >= 0 ? "var(--green)" : "var(--red)" }}
+                    style={{ color: (c.price_change_percentage_24h ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
                   >
-                    {c.price_change_percentage_24h >= 0 ? "+" : ""}
+                    {(c.price_change_percentage_24h ?? 0) >= 0 ? "+" : ""}
                     {c.price_change_percentage_24h?.toFixed(2)}%
                   </td>
                   <td className="text-right px-4 py-3" style={{ color: "var(--text-muted)" }}>
-                    ${(c.market_cap / 1e9).toFixed(1)}B
+                    ${((c.market_cap ?? 0) / 1e9).toFixed(1)}B
                   </td>
                 </tr>
               ))
@@ -230,9 +233,9 @@ export default function MarketsPage() {
                   </td>
                   <td
                     className="text-right px-4 py-3 font-semibold"
-                    style={{ color: s.change_percent >= 0 ? "var(--green)" : "var(--red)" }}
+                    style={{ color: (s.change_percent ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
                   >
-                    {s.change_percent >= 0 ? "+" : ""}
+                    {(s.change_percent ?? 0) >= 0 ? "+" : ""}
                     {s.change_percent?.toFixed(2)}%
                   </td>
                 </tr>
