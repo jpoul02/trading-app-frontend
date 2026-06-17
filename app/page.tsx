@@ -101,7 +101,8 @@ export default function DashboardPage() {
     }
 
     if (trendResult.status === "fulfilled") {
-      setTrending(trendResult.value.slice(0, 3));
+      const coins = trendResult.value?.coins ?? trendResult.value ?? [];
+      setTrending(Array.isArray(coins) ? coins.slice(0, 3) : []);
     } else {
       console.error("[Dashboard] Error fetching trending:", trendResult.reason);
     }
