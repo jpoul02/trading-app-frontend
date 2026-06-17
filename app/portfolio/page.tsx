@@ -8,6 +8,7 @@ import {
   BookOpen, AlertTriangle, ChevronDown, ChevronUp,
   Lightbulb, Shield, Target, HelpCircle,
 } from "lucide-react";
+import { PortfolioWizard } from "../components/PortfolioWizard";
 
 interface Position {
   id: string;
@@ -227,6 +228,9 @@ export default function PortfolioPage() {
   const [type, setType] = useState("crypto");
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [wizardDone, setWizardDone] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("portfolio_wizard_done") === "true"
+  );
 
   async function fetchPortfolio() {
     setLoading(true);
@@ -289,6 +293,15 @@ export default function PortfolioPage() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  if (!loading && !error && !wizardDone && positions.length === 0) {
+    return (
+      <PortfolioWizard
+        onComplete={() => { setWizardDone(true); fetchPortfolio(); }}
+        budget={0}
+      />
+    );
   }
 
   return (
