@@ -10,8 +10,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TradeLearn",
-  description: "Aprende a invertir de forma inteligente",
+  title: 'JOTAPOL Trading App',
+  description: 'Plataforma de inversión y trading educativo — JOTAPOL',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
