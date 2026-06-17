@@ -61,7 +61,7 @@ interface Candle {
 }
 
 interface IndicatorData {
-  signal: "COMPRAR" | "VENDER" | "ESPERAR";
+  signal: "COMPRAR FUERTE" | "TENDENCIA ALCISTA" | "VENDER FUERTE" | "TENDENCIA BAJISTA" | "ESPERAR";
   signal_reason: string;
   last_rsi: number;
   last_macd: number | null;
@@ -144,6 +144,16 @@ const FOREX_CONCEPTS = [
 // ─── Candle chart (SVG) ───────────────────────────────────────────────────────
 
 const CHART_TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
+
+const TF_DESCRIPTIONS: Record<string, string> = {
+  M1:  "1 minuto — muy ruidoso, para scalping avanzado",
+  M5:  "5 minutos — para operaciones cortas del día",
+  M15: "15 minutos — intermedio, útil para confirmar señales",
+  M30: "30 minutos — menos ruido, buenas señales intradía",
+  H1:  "1 hora — recomendado para principiantes ⭐",
+  H4:  "4 horas — tendencias de varios días",
+  D1:  "1 día — inversión a largo plazo",
+};
 
 function getPriceDec(range: number): number {
   if (range < 0.01) return 5;
@@ -881,6 +891,7 @@ export default function MT5Page() {
                     fetchCandles(chartSymbol, tf);
                     fetchIndicators(chartSymbol, tf);
                   }}
+                  title={TF_DESCRIPTIONS[tf]}
                   className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                   style={{
                     background: chartTf === tf ? "rgba(61,124,255,0.15)" : "var(--bg-secondary)",
@@ -999,22 +1010,18 @@ export default function MT5Page() {
           {indicatorsLoading && <Skeleton h="h-28" />}
 
           {!indicatorsLoading && indicators && !indicators.error && (() => {
-            const sigColor =
-              indicators.signal === "COMPRAR" ? "var(--green)"
-              : indicators.signal === "VENDER" ? "var(--red)"
-              : "var(--blue)";
-            const sigBg =
-              indicators.signal === "COMPRAR" ? "rgba(0,212,170,0.1)"
-              : indicators.signal === "VENDER" ? "rgba(255,71,87,0.1)"
-              : "rgba(61,124,255,0.1)";
-            const sigBorder =
-              indicators.signal === "COMPRAR" ? "rgba(0,212,170,0.35)"
-              : indicators.signal === "VENDER" ? "rgba(255,71,87,0.35)"
-              : "rgba(61,124,255,0.35)";
-            const sigArrow =
-              indicators.signal === "COMPRAR" ? "↑"
-              : indicators.signal === "VENDER" ? "↓"
-              : "—";
+            const SIG_MAP: Record<string, { color: string; bg: string; border: string; arrow: string }> = {
+              "COMPRAR FUERTE":   { color: "#00d4aa", bg: "rgba(0,212,170,0.14)",  border: "rgba(0,212,170,0.45)",  arrow: "↑↑" },
+              "TENDENCIA ALCISTA":{ color: "#00d4aa", bg: "rgba(0,212,170,0.06)",  border: "rgba(0,212,170,0.22)",  arrow: "↑"  },
+              "VENDER FUERTE":    { color: "#ff4757", bg: "rgba(255,71,87,0.14)",  border: "rgba(255,71,87,0.45)",  arrow: "↓↓" },
+              "TENDENCIA BAJISTA":{ color: "#f5a623", bg: "rgba(245,166,35,0.12)", border: "rgba(245,166,35,0.38)", arrow: "↓"  },
+              "ESPERAR":          { color: "#94a3b8", bg: "rgba(148,163,184,0.08)",border: "rgba(148,163,184,0.3)", arrow: "—"  },
+            };
+            const sig = SIG_MAP[indicators.signal] ?? SIG_MAP["ESPERAR"];
+            const sigColor  = sig.color;
+            const sigBg     = sig.bg;
+            const sigBorder = sig.border;
+            const sigArrow  = sig.arrow;
             return (
               <>
                 {/* Signal card */}
