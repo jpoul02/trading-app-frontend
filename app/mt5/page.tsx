@@ -60,6 +60,15 @@ interface Candle {
   volume: number;
 }
 
+interface IndicatorData {
+  signal: "COMPRAR" | "VENDER" | "ESPERAR";
+  signal_reason: string;
+  last_rsi: number;
+  last_macd: number | null;
+  last_close: number;
+  error?: string;
+}
+
 // ─── Static content ───────────────────────────────────────────────────────────
 
 const GLOSSARY = [
@@ -143,7 +152,7 @@ function getPriceDec(range: number): number {
   return 0;
 }
 
-function CandleChart({ candles }: Readonly<{ candles: Candle[] }>) {
+function CandleChart({ candles, onHover }: Readonly<{ candles: Candle[]; onHover?: (candle: Candle | null, x: number, y: number) => void }>) {
   if (candles.length === 0) {
     return (
       <div
@@ -178,7 +187,7 @@ function CandleChart({ candles }: Readonly<{ candles: Candle[] }>) {
   const xStep = Math.max(1, Math.ceil(candles.length / 6));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 420 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 420 }} onMouseLeave={() => onHover?.(null, 0, 0)}>
       {/* Grid lines — use style={} so CSS vars resolve */}
       {yTicks.map((p) => (
         <g key={p}>
@@ -210,7 +219,9 @@ function CandleChart({ candles }: Readonly<{ candles: Candle[] }>) {
         const bodyTop = Math.min(openY, closeY);
         const bodyH = Math.max(1, Math.abs(closeY - openY));
         return (
-          <g key={c.time}>
+          <g key={c.time} onMouseMove={(e) => onHover?.(c, e.clientX, e.clientY)}>
+            {/* transparent hit area */}
+            <rect x={centerX - gap / 2} y={PAD.top} width={gap} height={chartH} fill="transparent" />
             <line
               x1={centerX} y1={highY} x2={centerX} y2={lowY}
               style={{ stroke: color }}
@@ -280,6 +291,10 @@ export default function MT5Page() {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [chartInput, setChartInput] = useState("");
   const [candleAccordion, setCandleAccordion] = useState<string | null>(null);
+  const [hoveredCandle, setHoveredCandle] = useState<{ candle: Candle; x: number; y: number } | null>(null);
+  const [indicators, setIndicators] = useState<IndicatorData | null>(null);
+  const [indicatorsLoading, setIndicatorsLoading] = useState(false);
+  const [indicatorAccordion, setIndicatorAccordion] = useState<string | null>(null);
 
   async function fetchStatus(silent = false) {
     try {
@@ -313,6 +328,18 @@ export default function MT5Page() {
     } catch {}
   }
 
+  async function fetchIndicators(sym = chartSymbol, tf = chartTf) {
+    setIndicatorsLoading(true);
+    try {
+      const { data } = await api.get(`/api/mt5/indicators/${sym}`, { params: { timeframe: tf, count: 200 } });
+      setIndicators(data);
+    } catch {
+      setIndicators(null);
+    } finally {
+      setIndicatorsLoading(false);
+    }
+  }
+
   async function fetchPrice() {
     const sym = symbolInput.trim().toUpperCase();
     if (!sym) return;
@@ -333,6 +360,7 @@ export default function MT5Page() {
     fetchPositions();
     fetchHistory();
     fetchCandles();
+    fetchIndicators();
 
     const s = setInterval(() => fetchStatus(true), 10_000);
     const p = setInterval(fetchPositions, 5_000);
@@ -359,6 +387,51 @@ export default function MT5Page() {
         }
         .mt5-live-dot { animation: mt5pulse 2s ease-in-out infinite; }
       `}</style>
+
+      {/* Candle hover tooltip */}
+      {hoveredCandle && (
+        <div
+          style={{
+            position: "fixed",
+            left: hoveredCandle.x + 14,
+            top: hoveredCandle.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+            background: "#0f172a",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "8px 12px",
+            fontSize: 11,
+            color: "var(--text-primary)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            minWidth: 168,
+          }}
+        >
+          <p style={{ color: "var(--text-muted)", marginBottom: 5, fontSize: 10 }}>
+            {new Date(hoveredCandle.candle.time * 1000).toLocaleDateString("es-ES", {
+              day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit",
+            })}
+          </p>
+          {(() => {
+            const dec = getPriceDec(hoveredCandle.candle.high - hoveredCandle.candle.low);
+            const f = (n: number) => n.toFixed(Math.max(dec, 2));
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 10px" }}>
+                <span style={{ color: "var(--text-muted)" }}>Apertura</span>
+                <span style={{ fontWeight: 600, textAlign: "right" }}>{f(hoveredCandle.candle.open)}</span>
+                <span style={{ color: "var(--text-muted)" }}>Máximo</span>
+                <span style={{ fontWeight: 600, color: "var(--green)", textAlign: "right" }}>{f(hoveredCandle.candle.high)}</span>
+                <span style={{ color: "var(--text-muted)" }}>Mínimo</span>
+                <span style={{ fontWeight: 600, color: "var(--red)", textAlign: "right" }}>{f(hoveredCandle.candle.low)}</span>
+                <span style={{ color: "var(--text-muted)" }}>Cierre</span>
+                <span style={{ fontWeight: 600, textAlign: "right" }}>{f(hoveredCandle.candle.close)}</span>
+                <span style={{ color: "var(--text-muted)" }}>Volumen</span>
+                <span style={{ textAlign: "right" }}>{hoveredCandle.candle.volume.toLocaleString()}</span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
@@ -657,6 +730,7 @@ export default function MT5Page() {
                 onClick={() => {
                   setChartSymbol(s);
                   fetchCandles(s, chartTf);
+                  fetchIndicators(s, chartTf);
                 }}
                 className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 style={{
@@ -677,6 +751,7 @@ export default function MT5Page() {
                   setChartSymbol(sym);
                   setChartInput("");
                   fetchCandles(sym, chartTf);
+                  fetchIndicators(sym, chartTf);
                 }
               }}
               placeholder="Otro símbolo…"
@@ -695,6 +770,7 @@ export default function MT5Page() {
                   setChartSymbol(sym);
                   setChartInput("");
                   fetchCandles(sym, chartTf);
+                  fetchIndicators(sym, chartTf);
                 }
               }}
               className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
@@ -712,6 +788,7 @@ export default function MT5Page() {
                 onClick={() => {
                   setChartTf(tf);
                   fetchCandles(chartSymbol, tf);
+                  fetchIndicators(chartSymbol, tf);
                 }}
                 className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 style={{
@@ -732,7 +809,10 @@ export default function MT5Page() {
 
           {/* SVG candlestick chart */}
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-            <CandleChart candles={candles} />
+            <CandleChart
+              candles={candles}
+              onHover={(c, x, y) => setHoveredCandle(c ? { candle: c, x, y } : null)}
+            />
           </div>
 
           {/* Educational accordion */}
@@ -794,6 +874,188 @@ export default function MT5Page() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* ── Indicadores Técnicos ────────────────────────────────────────── */}
+      <section className="mb-8">
+        <div
+          className="rounded-xl p-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        >
+          <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            Indicadores Técnicos — {chartSymbol} {chartTf}
+          </h2>
+
+          {indicatorsLoading && <Skeleton h="h-28" />}
+
+          {!indicatorsLoading && indicators && !indicators.error && (() => {
+            const sigColor =
+              indicators.signal === "COMPRAR" ? "var(--green)"
+              : indicators.signal === "VENDER" ? "var(--red)"
+              : "var(--blue)";
+            const sigBg =
+              indicators.signal === "COMPRAR" ? "rgba(0,212,170,0.1)"
+              : indicators.signal === "VENDER" ? "rgba(255,71,87,0.1)"
+              : "rgba(61,124,255,0.1)";
+            const sigBorder =
+              indicators.signal === "COMPRAR" ? "rgba(0,212,170,0.35)"
+              : indicators.signal === "VENDER" ? "rgba(255,71,87,0.35)"
+              : "rgba(61,124,255,0.35)";
+            const sigArrow =
+              indicators.signal === "COMPRAR" ? "↑"
+              : indicators.signal === "VENDER" ? "↓"
+              : "—";
+            return (
+              <>
+                {/* Signal card */}
+                <div
+                  className="rounded-xl p-4 mb-4 flex items-center gap-4"
+                  style={{ background: sigBg, border: `1px solid ${sigBorder}` }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-black shrink-0"
+                    style={{ background: sigBg, color: sigColor }}
+                  >
+                    {sigArrow}
+                  </div>
+                  <div>
+                    <p className="text-xl font-black" style={{ color: sigColor }}>
+                      {indicators.signal}
+                    </p>
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      {indicators.signal_reason}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3-col metric grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>RSI (14)</p>
+                    <p
+                      className="text-2xl font-bold tabular-nums"
+                      style={{
+                        color: indicators.last_rsi < 30 ? "var(--green)"
+                          : indicators.last_rsi > 70 ? "var(--red)"
+                          : "var(--text-primary)",
+                      }}
+                    >
+                      {indicators.last_rsi.toFixed(1)}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      {indicators.last_rsi < 30 ? "Sobrevendido"
+                        : indicators.last_rsi > 70 ? "Sobrecomprado"
+                        : "Zona neutral"}
+                    </p>
+                  </div>
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>MACD</p>
+                    <p
+                      className="text-2xl font-bold tabular-nums"
+                      style={{ color: (indicators.last_macd ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
+                    >
+                      {indicators.last_macd?.toFixed(5) ?? "—"}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      {(indicators.last_macd ?? 0) >= 0 ? "Momentum positivo" : "Momentum negativo"}
+                    </p>
+                  </div>
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Precio Actual</p>
+                    <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                      {indicators.last_close.toFixed(5)}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{chartSymbol}</p>
+                  </div>
+                </div>
+
+                {/* Educational accordion */}
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ border: "1px solid var(--border)" }}
+                >
+                  {[
+                    {
+                      key: "ind-rsi",
+                      title: "RSI — Relative Strength Index",
+                      body: "Oscilador entre 0 y 100 que mide la fuerza del movimiento. Por encima de 70: el activo está sobrecomprado (posible corrección bajista). Por debajo de 30: sobrevendido (posible rebote alcista). Entre 30–70: zona neutral sin señal clara.",
+                    },
+                    {
+                      key: "ind-macd",
+                      title: "MACD — Moving Average Convergence Divergence",
+                      body: "Mide la diferencia entre dos medias móviles exponenciales (12 y 26 períodos). Cuando el histograma está en positivo, el momentum es alcista. Negativo = bajista. La señal más fuerte es el cruce de la línea MACD sobre la línea de señal.",
+                    },
+                    {
+                      key: "ind-bb",
+                      title: "Bandas de Bollinger",
+                      body: "Tres líneas: media de 20 períodos + desviación estándar ×2 (bandas superior e inferior). Cuando el precio toca la banda inferior con RSI bajo → posible entrada de compra. Cuando toca la superior con RSI alto → posible zona de venta.",
+                    },
+                    {
+                      key: "ind-sma",
+                      title: "SMA — Simple Moving Average (20/50)",
+                      body: "Promedio del precio en los últimos N períodos. SMA20 sigue tendencias cortas; SMA50 tendencias medias. Cuando SMA20 cruza por encima de SMA50 (Golden Cross) es señal alcista. Cruce inverso (Death Cross) es señal bajista.",
+                    },
+                    {
+                      key: "ind-disclaimer",
+                      title: "⚠️ Disclaimer — solo educativo",
+                      body: "Los indicadores técnicos son herramientas educativas, no señales de inversión. Ningún indicador predice el futuro con certeza. Las señales son automáticas y simplificadas. Antes de operar con dinero real, estudiá análisis técnico, practicá en demo y consultá con un asesor financiero.",
+                    },
+                  ].map((item, i) => {
+                    const open = indicatorAccordion === item.key;
+                    return (
+                      <div key={item.key} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                        <button
+                          onClick={() => setIndicatorAccordion(open ? null : item.key)}
+                          className="w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:opacity-80 transition-colors"
+                          style={{ background: "transparent", border: "none", fontFamily: "inherit" }}
+                        >
+                          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                            {item.title}
+                          </span>
+                          <span
+                            className="text-xs transition-transform duration-200"
+                            style={{ color: "var(--text-muted)", display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+                          >
+                            ▾
+                          </span>
+                        </button>
+                        {open && (
+                          <div className="px-4 pb-3 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                            {item.body}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+
+          {!indicatorsLoading && indicators?.error && (
+            <div
+              className="rounded-xl p-3 text-sm"
+              style={{ background: "rgba(255,71,87,0.08)", border: "1px solid var(--red)", color: "var(--red)" }}
+            >
+              {indicators.error}
+            </div>
+          )}
+
+          {!indicatorsLoading && !indicators && (
+            <p className="text-sm text-center py-6" style={{ color: "var(--text-muted)" }}>
+              Conectá MT5 para ver indicadores técnicos.
+            </p>
+          )}
         </div>
       </section>
 

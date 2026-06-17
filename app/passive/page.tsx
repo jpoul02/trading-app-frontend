@@ -120,7 +120,7 @@ export default function PassivePage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-              🌱 Invierte sin estar pegado a la pantalla
+              Invierte sin estar pegado a la pantalla
             </h1>
             <p className="mt-2 text-lg" style={{ color: "var(--text-muted)" }}>
               Estrategias pasivas que trabajan por ti mientras duermes. DCA, ETFs y staking explicados de forma simple.
