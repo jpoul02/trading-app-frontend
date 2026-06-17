@@ -166,8 +166,8 @@ function CandleChart({ candles, onHover }: Readonly<{ candles: Candle[]; onHover
   if (candles.length === 0) {
     return (
       <div
-        className="flex items-center justify-center"
-        style={{ height: 350, color: "var(--text-muted)" }}
+        className="flex items-center justify-center h-full"
+        style={{ color: "var(--text-muted)" }}
       >
         <p className="text-sm">Sin datos — seleccioná un símbolo y timeframe</p>
       </div>
@@ -197,7 +197,7 @@ function CandleChart({ candles, onHover }: Readonly<{ candles: Candle[]; onHover
   const xStep = Math.max(1, Math.ceil(candles.length / 6));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 420 }} onMouseLeave={() => onHover?.(null, 0, 0)}>
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }} onMouseLeave={() => onHover?.(null, 0, 0)}>
       {/* Grid lines — use style={} so CSS vars resolve */}
       {yTicks.map((p) => (
         <g key={p}>
@@ -1166,7 +1166,7 @@ export default function MT5Page() {
           </p>
 
           {/* SVG candlestick chart */}
-          <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div className="min-h-[320px] md:min-h-[420px]" style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <CandleChart
               candles={candles}
               onHover={(c, x, y) => setHoveredCandle(c ? { candle: c, x, y } : null)}
