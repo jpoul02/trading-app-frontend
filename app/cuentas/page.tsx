@@ -120,7 +120,7 @@ function BrokerCard({ accentColor, badge, name, subtitle, para, comision, minimo
 
 const FAQS = [
   {
-    q: "¿Pago impuestos en Guatemala?",
+    q: "¿Pago impuestos en El Salvador?",
     a: "Sí, las ganancias de capital pueden estar sujetas a impuestos según la SAT. Consultá con un contador local para el tratamiento correcto de tus ingresos por inversión.",
   },
   {
@@ -159,13 +159,13 @@ export default function CuentasPage() {
         style={{ marginBottom: 32 }}
       >
         <p style={{ fontSize: 10, color: GREEN, fontWeight: 700, letterSpacing: "0.2em", marginBottom: 8 }}>
-          GUÍA PARA GUATEMALTECOS
+          GUÍA PARA SALVADOREÑOS
         </p>
         <h1 style={{ color: TEXT, fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1, marginBottom: 10 }}>
           ¿Cómo empezar a invertir?
         </h1>
         <p style={{ color: TEXT2, fontSize: 14, lineHeight: 1.6, maxWidth: 560 }}>
-          Guía para abrir tus primeras cuentas desde Guatemala. Sin tecnicismos, paso a paso.
+          Guía para abrir tus primeras cuentas desde El Salvador. Sin tecnicismos, paso a paso.
         </p>
       </motion.div>
 
@@ -232,7 +232,7 @@ export default function CuentasPage() {
           warning="Practicá con cuenta demo por al menos 1 mes antes de usar dinero real. El leverage amplifica tanto ganancias como pérdidas."
           extra={
             <div style={{ marginTop: 14 }}>
-              <p style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", marginBottom: 8, fontWeight: 600 }}>BROKERS RECOMENDADOS PARA GUATEMALA</p>
+              <p style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", marginBottom: 8, fontWeight: 600 }}>BROKERS RECOMENDADOS PARA EL SALVADOR</p>
               <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
                 {[
                   { name: "Exness",    note: "Mínimo $10 · depositar con tarjeta local · soporte 24/7" },

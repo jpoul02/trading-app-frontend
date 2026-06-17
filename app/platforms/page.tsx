@@ -13,7 +13,7 @@ const platforms = [
       "Retiro tiene fee de $5",
       "Sin acceso a mercados emergentes",
     ],
-    guatemala: true,
+    elsalvador: true,
     minimum: "$50",
     assets: "Acciones + ETFs + Cripto",
     fee: "Spread ~1%",
@@ -33,7 +33,7 @@ const platforms = [
       "Interfaz compleja para principiantes",
       "Inactividad fee si <$100K en cuenta",
     ],
-    guatemala: true,
+    elsalvador: true,
     minimum: "$0",
     assets: "Acciones + ETFs + Opciones + Bonos",
     fee: "Desde $0",
@@ -53,7 +53,7 @@ const platforms = [
       "Regulación incierta en algunos países",
       "Interfaz puede abrumar al principiante",
     ],
-    guatemala: true,
+    elsalvador: true,
     minimum: "Muy bajo",
     assets: "Solo Cripto",
     fee: "0.1% spot",
@@ -74,7 +74,7 @@ const platforms = [
       "Menos opciones de criptomonedas",
       "Sin acceso a trading avanzado básico",
     ],
-    guatemala: true,
+    elsalvador: true,
     minimum: "Muy bajo",
     assets: "Solo Cripto",
     fee: "~1.49% transacción",
@@ -90,7 +90,7 @@ export default function PlatformsPage() {
           Plataformas de Inversión
         </h1>
         <p className="mt-1" style={{ color: "var(--text-muted)" }}>
-          Comparativa de las mejores plataformas disponibles desde Guatemala.
+          Comparativa de las mejores plataformas disponibles desde El Salvador.
         </p>
       </div>
 
@@ -111,11 +111,11 @@ export default function PlatformsPage() {
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium"
                     style={{
-                      background: p.guatemala ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)",
-                      color: p.guatemala ? "var(--green)" : "var(--red)",
+                      background: p.elsalvador ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)",
+                      color: p.elsalvador ? "var(--green)" : "var(--red)",
                     }}
                   >
-                    {p.guatemala ? "✓ Disponible Guatemala" : "✗ No disponible"}
+                    {p.elsalvador ? "✓ Disponible El Salvador" : "✗ No disponible"}
                   </span>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function PlatformsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Plataforma", "Tipo Activos", "Mínimo", "Guatemala", "Facilidad"].map((h) => (
+                {["Plataforma", "Tipo Activos", "Mínimo", "El Salvador", "Facilidad"].map((h) => (
                   <th key={h} className="text-left px-4 py-3" style={{ color: "var(--text-muted)" }}>
                     {h}
                   </th>
