@@ -173,7 +173,7 @@ export default function MarketsPage() {
             ) : tab === "crypto" ? (
               filteredCryptos.map((c, i) => (
                 <tr
-                  key={c.id}
+                  key={c.id ?? c.symbol ?? `crypto-${i}`}
                   style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
                 >
                   <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
@@ -219,7 +219,7 @@ export default function MarketsPage() {
             ) : (
               filteredStocks.map((s, i) => (
                 <tr
-                  key={s.ticker}
+                  key={s.ticker ?? s.symbol ?? `stock-${i}`}
                   style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
                 >
                   <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>

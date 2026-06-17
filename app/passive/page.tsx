@@ -128,9 +128,9 @@ export default function PassivePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} />)
-            : etfs.map((etf) => (
+            : etfs.map((etf, i) => (
                 <div
-                  key={etf.ticker}
+                  key={etf.ticker ?? etf.name ?? `etf-${i}`}
                   className="rounded-xl p-5"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
@@ -241,8 +241,8 @@ export default function PassivePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dcaResult.map((row) => (
-                    <tr key={row.year} style={{ borderTop: "1px solid var(--border)" }}>
+                  {dcaResult.map((row, i) => (
+                    <tr key={row.year ?? i} style={{ borderTop: "1px solid var(--border)" }}>
                       <td className="py-2 pr-4" style={{ color: "var(--text-primary)" }}>
                         Año {row.year}
                       </td>
@@ -272,9 +272,9 @@ export default function PassivePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} />)
-            : staking.map((s) => (
+            : staking.map((s, i) => (
                 <div
-                  key={s.crypto}
+                  key={s.crypto ?? `staking-${i}`}
                   className="rounded-xl p-5"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
