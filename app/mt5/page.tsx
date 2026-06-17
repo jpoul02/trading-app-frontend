@@ -636,6 +636,7 @@ export default function MT5Page() {
       const { data } = await api.post(`/api/mt5/close/${ticket}`);
       if (data.success) {
         fetchPositions();
+        fetchHistory();
       } else {
         setCloseError(`Error al cerrar: ${data.error}`);
       }
