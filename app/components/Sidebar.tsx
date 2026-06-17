@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMarketActivity, StockBar } from "../context/MarketActivityContext";
 
 const NAV = [
   { href: "/",          label: "Dashboard"   },
@@ -21,6 +22,64 @@ const MUTED   = "oklch(0.5555 0 0)";   // --primary (mid gray)
 const DIM     = "oklch(0.3715 0 0)";   // --accent
 const GREEN   = "#16c784";
 
+const RED = "#ea3943";
+
+type Maybe<T> = T | null | undefined;
+
+function ActivityBars({ bars }: { bars: Maybe<StockBar[]> }) {
+  if (bars === null) {
+    return (
+      <div style={{ height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 9, color: DIM, letterSpacing: "0.06em" }}>Sin datos</span>
+      </div>
+    );
+  }
+  if (bars === undefined || bars.length === 0) {
+    return (
+      <svg width="100%" height="28" viewBox="0 0 196 28" preserveAspectRatio="none">
+        {Array.from({ length: 12 }, (_, i) => {
+          const h = 4 + (i % 6) * 3;
+          return <rect key={i} x={i * 16 + 2} y={28 - h} width={12} height={h} fill={DIM} opacity={0.25} />;
+        })}
+      </svg>
+    );
+  }
+  const N = bars.length;
+  const gap = 2;
+  const barW = Math.max(3, Math.floor((194 - gap * (N - 1)) / N));
+  const maxAbs = Math.max(...bars.map(b => Math.abs(b.change)), 0.01);
+  return (
+    <svg width="100%" height="28" viewBox="0 0 196 28" preserveAspectRatio="none">
+      {bars.map((b, i) => {
+        const h = Math.max(2, (Math.abs(b.change) / maxAbs) * 22);
+        const color = b.change > 0 ? GREEN : b.change < 0 ? RED : DIM;
+        return (
+          <rect
+            key={i}
+            x={1 + i * (barW + gap)}
+            y={28 - h}
+            width={barW}
+            height={h}
+            fill={color}
+            opacity={0.5 + (i / Math.max(N - 1, 1)) * 0.5}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function CryptoChangePct({ change }: { change: Maybe<number> }) {
+  if (change === null)    return <span style={{ fontSize: 9, color: DIM }}>Sin datos</span>;
+  if (change === undefined) return <span style={{ fontSize: 9, color: DIM }}>—</span>;
+  const c = change >= 0 ? GREEN : RED;
+  return (
+    <span style={{ fontSize: 9, color: c, fontWeight: 500 }}>
+      {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+    </span>
+  );
+}
+
 function Logo() {
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
@@ -39,6 +98,7 @@ function Logo() {
 
 export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onClose?: () => void }>) {
   const pathname = usePathname();
+  const { stockBars, cryptoChange } = useMarketActivity();
 
   return (
     <aside
@@ -116,24 +176,11 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
             <span style={{ fontSize: 9, color: DIM }}>NYSE · NASDAQ</span>
           </div>
 
-          <svg width="100%" height="28" viewBox="0 0 196 28" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="bar-grad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={MUTED} stopOpacity="0.3" />
-                <stop offset="100%" stopColor={FG} stopOpacity="0.6" />
-              </linearGradient>
-            </defs>
-            {(["b0:8","b1:12","b2:10","b3:16","b4:11","b5:18","b6:14","b7:20","b8:15","b9:19","b10:12","b11:17","b12:14","b13:20","b14:16","b15:19","b16:13","b17:21","b18:17","b19:22"] as const).map((entry, i) => {
-              const h = Number(entry.split(":")[1]);
-              return (
-                <rect key={entry} x={i * 9.8 + 1} y={28 - h} width={7} height={h} fill="url(#bar-grad)" opacity={0.3 + (i / 19) * 0.7} />
-              );
-            })}
-          </svg>
+          <ActivityBars bars={stockBars} />
 
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
             <span style={{ fontSize: 9, color: MUTED }}>Cripto 24/7</span>
-            <span style={{ fontSize: 9, color: GREEN, fontWeight: 500 }}>+2.4%</span>
+            <CryptoChangePct change={cryptoChange} />
           </div>
         </div>
       </div>

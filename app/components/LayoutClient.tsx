@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Sidebar from "./Sidebar";
+import { MarketActivityProvider } from "../context/MarketActivityContext";
 
 export function LayoutClient({ children }: Readonly<{ children: React.ReactNode }>) {
   const [open, setOpen] = useState(false);
 
   return (
-    <>
+    <MarketActivityProvider>
       {/* Hamburger — only visible ≤900px via CSS */}
       <button
         className="hamburger-btn"
@@ -31,6 +32,6 @@ export function LayoutClient({ children }: Readonly<{ children: React.ReactNode 
       <main className="main-content">
         {children}
       </main>
-    </>
+    </MarketActivityProvider>
   );
 }
