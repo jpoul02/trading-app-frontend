@@ -285,6 +285,224 @@ function Skeleton({ h = "h-28" }: Readonly<{ h?: string }>) {
   );
 }
 
+// ─── Confirm Order Modal ─────────────────────────────────────────────────────
+
+type PendingAction =
+  | { kind: "order"; action: "buy" | "sell"; sym: string; volume: number; sl: string; tp: string }
+  | { kind: "close"; ticket: number; symbol: string; profit: number };
+
+function ConfirmOrderModal({
+  pending,
+  price,
+  onConfirm,
+  onCancel,
+}: {
+  pending: PendingAction;
+  price: MT5Price | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const isBuy = pending.kind === "order" && pending.action === "buy";
+  const accentColor =
+    pending.kind === "close" ? "var(--red)" :
+    isBuy ? "var(--green)" : "var(--red)";
+  const confirmTextColor =
+    pending.kind === "order" && isBuy ? "#0a1628" : "#fff";
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(4px)",
+        zIndex: 9998,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          padding: "1.5rem",
+          maxWidth: 400,
+          width: "100%",
+          position: "relative",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onCancel}
+          aria-label="Cerrar"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 14,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--text-muted)",
+            fontSize: 18,
+            lineHeight: 1,
+            padding: "2px 6px",
+          }}
+        >
+          ✕
+        </button>
+
+        <h3
+          style={{
+            color: "var(--text-primary)",
+            fontWeight: 700,
+            fontSize: "1.1rem",
+            marginBottom: "1.25rem",
+          }}
+        >
+          Confirmar orden
+        </h3>
+
+        <div
+          style={{
+            background: "var(--bg-secondary)",
+            borderRadius: 10,
+            padding: "0.875rem 1rem",
+            marginBottom: "1rem",
+            border: "1px solid var(--border)",
+          }}
+        >
+          {pending.kind === "order" ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                gap: "7px 14px",
+                fontSize: 14,
+              }}
+            >
+              <span style={{ color: "var(--text-muted)" }}>Símbolo</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 700, textAlign: "right" }}>
+                {pending.sym}
+              </span>
+              <span style={{ color: "var(--text-muted)" }}>Dirección</span>
+              <span style={{ color: accentColor, fontWeight: 800, textAlign: "right" }}>
+                {isBuy ? "COMPRAR" : "VENDER"}
+              </span>
+              <span style={{ color: "var(--text-muted)" }}>Volumen</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 600, textAlign: "right" }}>
+                {pending.volume} lotes
+              </span>
+              {pending.sl && parseFloat(pending.sl) > 0 && (
+                <>
+                  <span style={{ color: "var(--text-muted)" }}>Stop Loss</span>
+                  <span style={{ color: "var(--red)", fontWeight: 600, textAlign: "right" }}>
+                    {pending.sl}
+                  </span>
+                </>
+              )}
+              {pending.tp && parseFloat(pending.tp) > 0 && (
+                <>
+                  <span style={{ color: "var(--text-muted)" }}>Take Profit</span>
+                  <span style={{ color: "var(--green)", fontWeight: 600, textAlign: "right" }}>
+                    {pending.tp}
+                  </span>
+                </>
+              )}
+              {price && !price.error && (
+                <>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {isBuy ? "Precio ASK" : "Precio BID"}
+                  </span>
+                  <span style={{ color: "var(--text-primary)", fontWeight: 600, textAlign: "right" }}>
+                    {isBuy
+                      ? price.ask?.toFixed(price.digits ?? 5)
+                      : price.bid?.toFixed(price.digits ?? 5)}
+                  </span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                gap: "7px 14px",
+                fontSize: 14,
+              }}
+            >
+              <span style={{ color: "var(--text-muted)" }}>Posición</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 700, textAlign: "right" }}>
+                #{pending.ticket}
+              </span>
+              <span style={{ color: "var(--text-muted)" }}>Símbolo</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 700, textAlign: "right" }}>
+                {pending.symbol}
+              </span>
+              <span style={{ color: "var(--text-muted)" }}>Profit actual</span>
+              <span
+                style={{
+                  color: pending.profit >= 0 ? "var(--green)" : "var(--red)",
+                  fontWeight: 700,
+                  textAlign: "right",
+                }}
+              >
+                {pending.profit >= 0 ? "+" : ""}
+                {pending.profit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <p style={{ color: "var(--text-muted)", fontSize: 12, marginBottom: "1.25rem" }}>
+          ⚠️ Cuenta DEMO — dinero virtual
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "0.75rem",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "transparent",
+              color: "var(--text-muted)",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontSize: 14,
+              fontFamily: "inherit",
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: "0.75rem",
+              borderRadius: 10,
+              border: "none",
+              background: accentColor,
+              color: confirmTextColor,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontSize: 14,
+              fontFamily: "inherit",
+            }}
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MT5Page() {
@@ -315,6 +533,8 @@ export default function MT5Page() {
   const [orderPriceLoading, setOrderPriceLoading] = useState(false);
   const [closeLoadingTicket, setCloseLoadingTicket] = useState<number | null>(null);
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds; 0 = manual
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   async function fetchStatus(silent = false) {
     try {
@@ -374,21 +594,22 @@ export default function MT5Page() {
     }
   }
 
-  async function sendOrder(action: "buy" | "sell") {
+  function sendOrder(action: "buy" | "sell") {
     const sym = orderSymbol.trim().toUpperCase();
-    const confirmed = window.confirm(
-      `¿Seguro que querés ejecutar esta orden de ${action.toUpperCase()} en ${sym} con ${orderVolume} lotes? (Cuenta DEMO)`
-    );
-    if (!confirmed) return;
+    setPendingAction({ kind: "order", action, sym, volume: orderVolume, sl: orderSL, tp: orderTP });
+  }
+
+  async function executeOrder(action: "buy" | "sell", sym: string, volume: number, sl: string, tp: string) {
+    setPendingAction(null);
     setOrderLoading(true);
     setOrderResult(null);
     try {
       const { data } = await api.post("/api/mt5/order", {
         symbol: sym,
         action,
-        volume: orderVolume,
-        ...(orderSL && parseFloat(orderSL) > 0 ? { sl: parseFloat(orderSL) } : {}),
-        ...(orderTP && parseFloat(orderTP) > 0 ? { tp: parseFloat(orderTP) } : {}),
+        volume,
+        ...(sl && parseFloat(sl) > 0 ? { sl: parseFloat(sl) } : {}),
+        ...(tp && parseFloat(tp) > 0 ? { tp: parseFloat(tp) } : {}),
       });
       if (data.success) {
         setOrderResult({ success: true, message: `Orden #${data.order} ejecutada a ${data.price}` });
@@ -403,21 +624,23 @@ export default function MT5Page() {
     }
   }
 
-  async function closePosition(ticket: number, symbol: string) {
-    const confirmed = window.confirm(
-      `¿Cerrar la posición #${ticket} (${symbol})? (Cuenta DEMO)`
-    );
-    if (!confirmed) return;
+  function closePosition(ticket: number, symbol: string, profit: number) {
+    setPendingAction({ kind: "close", ticket, symbol, profit });
+  }
+
+  async function executeClose(ticket: number) {
+    setPendingAction(null);
+    setCloseError(null);
     setCloseLoadingTicket(ticket);
     try {
       const { data } = await api.post(`/api/mt5/close/${ticket}`);
       if (data.success) {
         fetchPositions();
       } else {
-        alert(`Error al cerrar: ${data.error}`);
+        setCloseError(`Error al cerrar: ${data.error}`);
       }
     } catch {
-      alert("Error de red al cerrar la posición");
+      setCloseError("Error de red al cerrar la posición");
     } finally {
       setCloseLoadingTicket(null);
     }
@@ -476,6 +699,20 @@ export default function MT5Page() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {pendingAction && (
+        <ConfirmOrderModal
+          pending={pendingAction}
+          price={orderPrice}
+          onCancel={() => setPendingAction(null)}
+          onConfirm={() => {
+            if (pendingAction.kind === "order") {
+              executeOrder(pendingAction.action, pendingAction.sym, pendingAction.volume, pendingAction.sl, pendingAction.tp);
+            } else {
+              executeClose(pendingAction.ticket);
+            }
+          }}
+        />
+      )}
       <style>{`
         @keyframes mt5pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
@@ -1390,6 +1627,25 @@ export default function MT5Page() {
           )}
         </div>
 
+        {closeError && (
+          <div
+            className="rounded-xl px-4 py-3 mb-3 text-sm font-semibold flex items-center justify-between"
+            style={{
+              background: "rgba(255,71,87,0.1)",
+              border: "1px solid rgba(255,71,87,0.4)",
+              color: "var(--red)",
+            }}
+          >
+            <span>✗ {closeError}</span>
+            <button
+              onClick={() => setCloseError(null)}
+              className="ml-3 shrink-0 text-xs opacity-60 hover:opacity-100 cursor-pointer"
+              style={{ background: "none", border: "none", color: "inherit" }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div
           className="rounded-xl overflow-hidden"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
@@ -1452,7 +1708,7 @@ export default function MT5Page() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => closePosition(p.ticket, p.symbol)}
+                        onClick={() => closePosition(p.ticket, p.symbol, p.profit)}
                         disabled={closeLoadingTicket === p.ticket}
                         className="px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-opacity"
                         style={{ background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.4)", color: "var(--red)" }}
