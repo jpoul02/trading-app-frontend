@@ -188,13 +188,13 @@ function CandleChart({ candles }: { candles: Candle[] }) {
           <line
             x1={PAD.left} y1={toY(p)}
             x2={W - PAD.right} y2={toY(p)}
-            style={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
+            style={{ stroke: "#1e293b", strokeDasharray: "4 4" }}
             strokeWidth={0.5}
           />
           <text
             x={PAD.left - 6} y={toY(p) + 4}
             fontSize={9} textAnchor="end"
-            style={{ fill: "var(--text-muted)" }}
+            style={{ fill: "#94a3b8" }}
           >
             {p.toFixed(priceDec)}
           </text>
@@ -204,7 +204,7 @@ function CandleChart({ candles }: { candles: Candle[] }) {
       {/* Candles */}
       {candles.map((c, i) => {
         const isGreen = c.close >= c.open;
-        const color = isGreen ? "var(--green)" : "var(--red)";
+        const color = isGreen ? "#00d4aa" : "#ff4757";
         const centerX = PAD.left + i * gap + gap / 2;
         const openY = toY(c.open);
         const closeY = toY(c.close);
@@ -240,7 +240,7 @@ function CandleChart({ candles }: { candles: Candle[] }) {
             <text
               key={c.time} x={x} y={H - 6}
               fontSize={9} textAnchor="middle"
-              style={{ fill: "var(--text-muted)" }}
+              style={{ fill: "#94a3b8" }}
             >
               {label}
             </text>
