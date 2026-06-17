@@ -123,9 +123,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} />)
-            : cryptos.map((c) => (
+            : cryptos.map((c, i) => (
                 <div
-                  key={c.id}
+                  key={c.id ?? `crypto-${i}`}
                   className="rounded-xl p-4"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
@@ -166,9 +166,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} />)
-            : stocks.map((s) => (
+            : stocks.map((s, i) => (
                 <div
-                  key={s.ticker}
+                  key={s.ticker ?? `stock-${i}`}
                   className="rounded-xl p-4"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {trending.map((t, i) => (
                 <div
-                  key={t.id}
+                  key={t.id ?? `trending-${i}`}
                   className="rounded-xl p-4 flex items-center gap-4"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
