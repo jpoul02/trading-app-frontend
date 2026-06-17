@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, animate } from "framer-motion";
 import api from "@/lib/api";
+import { useMarketActivity } from "./context/MarketActivityContext";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -300,53 +301,21 @@ function CryptoMini({ c }: { c: CryptoPrice }) {
 
 // ─── Alerts card ──────────────────────────────────────────────────────────────
 
-const ALERTS = [
-  { id: 1, dir: "▲", asset: "BTC", msg: "Superó $65,000",          time: "3m",  color: GREEN },
-  { id: 2, dir: "▼", asset: "ETH", msg: "Cayó −3.8% en 1h",        time: "14m", color: RED   },
-  { id: 3, dir: "◈", asset: "SOL", msg: "Objetivo $180 alcanzado", time: "1h",  color: AMBER },
-  { id: 4, dir: "▲", asset: "BNB", msg: "Vol. inusual detectado",  time: "2h",  color: BLUE  },
-];
-
 function AlertsCard() {
   return (
     <motion.div
       variants={cardAnim}
-      whileHover={{ scale: 1.006, transition: { duration: 0.18, ease: EASE } }}
       className="g-c2"
       style={{ ...TERM, padding: 22 }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <SectionLabel>Alertas de precio</SectionLabel>
-        <span style={{ padding: "2px 10px", border: `1px solid ${DIM}`, color: MUTED, fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", cursor: "pointer" }}>
-          + NUEVA
-        </span>
+      <SectionLabel>Alertas de precio</SectionLabel>
+      <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 0" }}>
+        <span style={{ fontSize: 22, color: DIM }}>◈</span>
+        <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em" }}>SIN ALERTAS ACTIVAS</p>
+        <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const, maxWidth: 180 }}>
+          La funcionalidad de alertas de precio estará disponible próximamente.
+        </p>
       </div>
-      {ALERTS.map((a, i) => (
-        <motion.div
-          key={a.id}
-          initial={{ opacity: 0, x: -12 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.1 + 0.3, duration: 0.4, ease: EASE }}
-          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: i < ALERTS.length - 1 ? `1px solid ${DIM}40` : "none" }}
-        >
-          <span style={{ width: 26, height: 26, border: `1px solid ${a.color}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: a.color, flexShrink: 0, background: `${a.color}08`, borderRadius: 0 }}>
-            {a.dir}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: TEXT, fontWeight: 700, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-              <span style={{ color: a.color }}>{a.asset}</span> · {a.msg}
-            </p>
-          </div>
-          <span style={{ color: DIM, fontSize: 9, flexShrink: 0, letterSpacing: "0.06em" }}>{a.time}</span>
-          {i === 0 && (
-            <motion.span
-              animate={{ opacity: [1, 0.2, 1] }}
-              transition={{ duration: 1.2, repeat: Infinity }}
-              style={{ width: 5, height: 5, borderRadius: "50%", background: a.color, flexShrink: 0 }}
-            />
-          )}
-        </motion.div>
-      ))}
     </motion.div>
   );
 }
@@ -361,6 +330,7 @@ export default function DashboardPage() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(false);
   const lastFearGreedFetch        = useRef<number>(0);
+  const { setStockBars, setCryptoChange } = useMarketActivity();
 
   async function fetchData(silent = false) {
     if (!silent) { setLoading(true); setError(false); }
@@ -373,8 +343,18 @@ export default function DashboardPage() {
         : Promise.resolve(null),
       api.get('/api/market/trending').then(r => r.data),
     ]);
-    if (pR.status === "fulfilled") setCryptos(pR.value.slice(0, 8));
-    if (sR.status === "fulfilled") setStocks(sR.value);
+    if (pR.status === "fulfilled") {
+      setCryptos(pR.value.slice(0, 8));
+      setCryptoChange(pR.value[0]?.price_change_percentage_24h ?? null);
+    } else {
+      setCryptoChange(null);
+    }
+    if (sR.status === "fulfilled") {
+      setStocks(sR.value);
+      setStockBars((sR.value as Stock[]).map((s: Stock) => ({ change: s.change_pct_24h })));
+    } else {
+      setStockBars(null);
+    }
     if (fR.status === "fulfilled" && fR.value !== null) {
       setFearGreed(fR.value);
       lastFearGreedFetch.current = Date.now();
@@ -479,8 +459,12 @@ export default function DashboardPage() {
           className="g-c2"
           style={{ ...brutalCard(AMBER), padding: 26, minHeight: 190, display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden" }}
         >
-          {loading || !btc ? (
+          {loading ? (
             <><PulseLoader /><PulseLoader /><PulseLoader /></>
+          ) : !btc ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ color: RED, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em" }}>NO SE PUDO CARGAR · CoinGecko</p>
+            </div>
           ) : (
             <>
               <HeroChart />
@@ -512,7 +496,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p style={{ color: MUTED, fontSize: 11, marginBottom: 2 }}>Vol. 24h</p>
-                    <p style={{ color: TEXT2, fontSize: 13, fontWeight: 600 }}>$38.4B</p>
+                    <p style={{ color: DIM, fontSize: 13, fontWeight: 600 }}>—</p>
                   </div>
                 </div>
               </div>
@@ -571,7 +555,15 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <span style={{ fontSize: 28, color: DIM }}>—</span>
+              <p style={{ color: RED, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em" }}>DATOS NO DISPONIBLES</p>
+              <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const }}>
+                API alternative.me no responde
+              </p>
+            </div>
+          )}
         </motion.div>
 
         {/* ③④ ETH + BNB */}
@@ -607,6 +599,8 @@ export default function DashboardPage() {
           <SectionLabel>ETFs · Acciones</SectionLabel>
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <PulseLoader key={i} />)
+            : stocks.length === 0
+            ? <p style={{ color: RED, fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", padding: "8px 0" }}>NO SE PUDO CARGAR · yfinance</p>
             : stocks.map((s, i) => (
                 <div key={s.symbol ?? i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < stocks.length - 1 ? `1px solid ${DIM}30` : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -633,6 +627,8 @@ export default function DashboardPage() {
           <SectionLabel>Trending · Top Volumen</SectionLabel>
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <PulseLoader key={i} />)
+            : trending.length === 0
+            ? <p style={{ color: RED, fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", padding: "8px 0" }}>NO SE PUDO CARGAR · CoinGecko</p>
             : trending.map((t, i) => {
                 const name   = t.item?.name   ?? t.name   ?? "—";
                 const symbol = t.item?.symbol ?? t.symbol ?? "—";
@@ -669,45 +665,28 @@ export default function DashboardPage() {
 
         {/* ⑫ MARKET STATS */}
         <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
-          <SectionLabel>Estadísticas globales</SectionLabel>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <SectionLabel>Estadísticas globales</SectionLabel>
+            <span style={{ fontSize: 7, color: DIM, letterSpacing: "0.1em", border: `1px solid ${DIM}40`, padding: "2px 6px" }}>
+              SIN FUENTE EN TIEMPO REAL
+            </span>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
             {[
-              { label: "DOMINANCIA BTC",  value: "54.2%",  color: AMBER },
-              { label: "MKT CAP GLOBAL",  value: "$2.4T",   color: BLUE  },
-              { label: "VOLUMEN 24H",      value: "$89.3B",  color: GREEN },
-              { label: "CRIPTOS ACTIVAS", value: "9,400+",  color: MUTED },
+              { label: "DOMINANCIA BTC",  color: AMBER },
+              { label: "MKT CAP GLOBAL",  color: BLUE  },
+              { label: "VOLUMEN 24H",      color: GREEN },
+              { label: "CRIPTOS ACTIVAS", color: MUTED },
             ].map(stat => (
               <div key={stat.label} style={{ padding: "12px 14px", border: `1px solid ${DIM}40`, background: "rgba(240,180,41,0.015)" }}>
                 <p style={{ fontSize: 7, color: DIM, letterSpacing: "0.16em", marginBottom: 6, textTransform: "uppercase" as const }}>{stat.label}</p>
-                <p style={{ color: stat.color, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{stat.value}</p>
+                <p style={{ color: DIM, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>—</p>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 7, color: DIM, letterSpacing: "0.16em", marginBottom: 6, textTransform: "uppercase" as const }}>Dominancia por activo</p>
-          <div style={{ display: "flex", height: 6, gap: 1, marginBottom: 6 }}>
-            {[
-              { pct: 54, color: AMBER },
-              { pct: 17, color: BLUE  },
-              { pct: 4,  color: GREEN },
-              { pct: 25, color: DIM   },
-            ].map((d, i) => (
-              <motion.div key={i} initial={{ width: 0 }} animate={{ width: `${d.pct}%` }} transition={{ duration: 1.2, ease: EASE, delay: 0.5 + i * 0.06 }}
-                style={{ background: d.color, height: "100%", flexShrink: 0 }} />
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 14 }}>
-            {[
-              { label: "BTC 54%",   color: AMBER },
-              { label: "ETH 17%",   color: BLUE  },
-              { label: "BNB 4%",    color: GREEN },
-              { label: "OTROS 25%", color: DIM   },
-            ].map(d => (
-              <span key={d.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 8, color: MUTED, letterSpacing: "0.06em" }}>
-                <span style={{ width: 6, height: 6, background: d.color, display: "inline-block", flexShrink: 0 }} />
-                {d.label}
-              </span>
-            ))}
-          </div>
+          <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const }}>
+            Esta sección requiere una fuente de datos de mercado global. Sin conexión a CoinGecko Pro o CoinMarketCap.
+          </p>
         </motion.div>
 
       </motion.div>

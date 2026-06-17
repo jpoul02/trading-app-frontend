@@ -216,13 +216,16 @@ export default function MarketsPage() {
                   </td>
                   <td
                     className="text-right px-4 py-3 font-semibold"
-                    style={{ color: (c.price_change_percentage_24h ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
+                    style={{ color: c.price_change_percentage_24h != null
+                      ? (c.price_change_percentage_24h >= 0 ? "var(--green)" : "var(--red)")
+                      : "var(--text-muted)" }}
                   >
-                    {(c.price_change_percentage_24h ?? 0) >= 0 ? "+" : ""}
-                    {c.price_change_percentage_24h?.toFixed(2)}%
+                    {c.price_change_percentage_24h != null
+                      ? `${c.price_change_percentage_24h >= 0 ? "+" : ""}${c.price_change_percentage_24h.toFixed(2)}%`
+                      : "—"}
                   </td>
                   <td className="text-right px-4 py-3" style={{ color: "var(--text-muted)" }}>
-                    ${((c.market_cap ?? 0) / 1e9).toFixed(1)}B
+                    {c.market_cap != null ? `$${(c.market_cap / 1e9).toFixed(1)}B` : "—"}
                   </td>
                 </tr>
               ))
@@ -243,10 +246,13 @@ export default function MarketsPage() {
                   </td>
                   <td
                     className="text-right px-4 py-3 font-semibold"
-                    style={{ color: (s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
+                    style={{ color: (s.change_pct_24h ?? s.change_percent) != null
+                      ? ((s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "var(--green)" : "var(--red)")
+                      : "var(--text-muted)" }}
                   >
-                    {(s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "+" : ""}
-                    {s.change_pct_24h ?? s.change_percent?.toFixed(2)}%
+                    {(s.change_pct_24h ?? s.change_percent) != null
+                      ? `${(s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "+" : ""}${(s.change_pct_24h ?? s.change_percent)?.toFixed(2)}%`
+                      : "—"}
                   </td>
                 </tr>
               ))

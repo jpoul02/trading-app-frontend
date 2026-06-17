@@ -150,9 +150,17 @@ export default function PassivePage() {
 
       {/* ETFs */}
       <section className="mb-10">
-        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          ETFs Recomendados
-        </h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+            ETFs Recomendados
+          </h2>
+          <span
+            className="text-xs px-2 py-0.5 rounded"
+            style={{ background: "rgba(148,163,184,0.1)", border: "1px solid rgba(148,163,184,0.25)", color: "var(--text-muted)" }}
+          >
+            Datos de referencia histórica · no en tiempo real
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} />)
@@ -294,9 +302,17 @@ export default function PassivePage() {
 
       {/* Staking */}
       <section className="mb-10">
-        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          Staking de Criptomonedas
-        </h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+            Staking de Criptomonedas
+          </h2>
+          <span
+            className="text-xs px-2 py-0.5 rounded"
+            style={{ background: "rgba(148,163,184,0.1)", border: "1px solid rgba(148,163,184,0.25)", color: "var(--text-muted)" }}
+          >
+            APY aproximado · varía según plataforma
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} />)
