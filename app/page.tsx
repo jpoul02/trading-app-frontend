@@ -217,10 +217,25 @@ function ChangeBadge({ value }: { value: number }) {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function InfoTooltip({ text }: { text: string }) {
   return (
-    <p style={{ fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 14, letterSpacing: "0.01em" }}>
+    <span className="relative inline-block group cursor-help ml-2 align-middle">
+      <span style={{ fontSize: 9, color: DIM, fontWeight: 700, lineHeight: 1, border: `1px solid ${DIM}`, padding: "0 3px", display: "inline-block" }}>?</span>
+      <span
+        className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 p-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20 leading-relaxed"
+        style={{ background: CARD, border: `1px solid ${BORDER}`, color: TEXT2, fontSize: 10, borderRadius: 0 }}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+function SectionLabel({ children, tooltip }: { children: React.ReactNode; tooltip?: string }) {
+  return (
+    <p style={{ fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 14, letterSpacing: "0.01em", display: "flex", alignItems: "center" }}>
       {children}
+      {tooltip && <InfoTooltip text={tooltip} />}
     </p>
   );
 }
@@ -317,7 +332,10 @@ function AlertsCard({ alerts, onNew, onDelete }: {
   return (
     <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, color: MUTED, letterSpacing: "0.01em" }}>Alertas de precio</p>
+        <p style={{ fontSize: 11, fontWeight: 600, color: MUTED, letterSpacing: "0.01em", display: "flex", alignItems: "center" }}>
+          Alertas de precio
+          <InfoTooltip text="Configurá un precio objetivo y te avisamos cuando se alcance. Útil para no estar monitoreando el mercado todo el día." />
+        </p>
         <button
           onClick={onNew}
           style={{
@@ -588,6 +606,7 @@ export default function DashboardPage() {
           className="g-c2"
           style={{ ...brutalCard(AMBER), padding: 26, minHeight: 190, display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden" }}
         >
+          <SectionLabel tooltip="Precio actual de las principales criptomonedas. El % muestra el cambio en las últimas 24 horas. Verde = subió, rojo = bajó.">Precios Crypto</SectionLabel>
           {loading ? (
             <><PulseLoader /><PulseLoader /><PulseLoader /></>
           ) : !btc ? (
@@ -639,7 +658,7 @@ export default function DashboardPage() {
           className="g-c2 g-r2"
           style={{ ...brutalCard(fearGreed ? fearColor(fearGreed.value) : MUTED), padding: 24, minHeight: 400, display: "flex", flexDirection: "column" }}
         >
-          <SectionLabel>Índice Miedo &amp; Codicia</SectionLabel>
+          <SectionLabel tooltip="Mide el sentimiento del mercado crypto de 0 a 100. 0-24 = Miedo extremo (posible oportunidad de compra). 75-100 = Codicia extrema (mercado sobrecalentado, precaución). Es una señal contraria.">Índice Miedo &amp; Codicia</SectionLabel>
           {loading ? (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, paddingTop: 20 }}>
               <PulseLoader /><PulseLoader /><PulseLoader />
@@ -725,7 +744,7 @@ export default function DashboardPage() {
 
         {/* ⑨ ETFs */}
         <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
-          <SectionLabel>ETFs · Acciones</SectionLabel>
+          <SectionLabel tooltip="ETFs son fondos que contienen muchas acciones. SPY = S&P 500 (500 empresas grandes de EE.UU.), QQQ = tecnología (Apple, Google, Meta), VTI = todo el mercado americano.">ETFs · Acciones</SectionLabel>
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <PulseLoader key={i} />)
             : stocks.length === 0
@@ -753,7 +772,7 @@ export default function DashboardPage() {
 
         {/* ⑩ TRENDING */}
         <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
-          <SectionLabel>Trending · Top Volumen</SectionLabel>
+          <SectionLabel tooltip="Los activos más buscados en este momento. Útil para ver qué llama la atención del mercado, pero cuidado: popularidad ≠ buena inversión.">Trending · Top Volumen</SectionLabel>
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <PulseLoader key={i} />)
             : trending.length === 0
@@ -823,6 +842,120 @@ export default function DashboardPage() {
         </motion.div>
 
       </motion.div>
+
+      {/* ── Triggered alert banners ── */}
+      <AnimatePresence>
+        {triggeredAlerts.map(a => (
+          <motion.div
+            key={a.id}
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -24 }}
+            style={{
+              position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
+              padding: "12px 20px", background: "#eab30812", border: "1px solid #eab308",
+              color: "#eab308", fontSize: 13, fontWeight: 600, zIndex: 300,
+              display: "flex", alignItems: "center", gap: 16, whiteSpace: "nowrap" as const,
+            }}
+          >
+            🔔 ALERTA: {a.symbol} {a.condition === "above" ? "superó los" : "bajó de"} ${a.price.toLocaleString("en-US")}
+            <button
+              onClick={() => setTriggeredAlerts(t => t.filter(x => x.id !== a.id))}
+              style={{ background: "transparent", border: "none", color: "#eab308", cursor: "pointer", fontSize: 20, padding: 0, lineHeight: 1, fontFamily: "inherit" }}
+            >×</button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {/* ── Alert modal ── */}
+      <AnimatePresence>
+        {showAlertModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAlertModal(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}
+          >
+            <motion.div
+              initial={{ scale: 0.93, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.93, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              style={{ ...TERM, padding: 28, width: 340, maxWidth: "90vw" }}
+            >
+              <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, marginBottom: 20, letterSpacing: "0.06em" }}>NUEVA ALERTA DE PRECIO</p>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>SÍMBOLO</label>
+                <select
+                  value={newAlertSymbol}
+                  onChange={e => setNewAlertSymbol(e.target.value)}
+                  style={{ width: "100%", padding: "8px 10px", background: CARD2, border: `1px solid ${BORDER}`, color: TEXT, fontSize: 12, fontFamily: "inherit", borderRadius: 0, outline: "none" }}
+                >
+                  {["BTC", "ETH", "SOL", "BNB", "ADA", "XRP", "DOGE", "SPY", "QQQ", "VTI"].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>CONDICIÓN</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["above", "below"] as const).map(cond => (
+                    <button
+                      key={cond}
+                      onClick={() => setNewAlertCondition(cond)}
+                      style={{
+                        flex: 1, padding: "8px 0", fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+                        cursor: "pointer", borderRadius: 0,
+                        background: newAlertCondition === cond ? `${GREEN}15` : CARD2,
+                        border: `1px solid ${newAlertCondition === cond ? GREEN : BORDER}`,
+                        color: newAlertCondition === cond ? GREEN : MUTED,
+                      }}
+                    >
+                      {cond === "above" ? "↑ Cuando suba de" : "↓ Cuando baje de"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 22 }}>
+                <label style={{ fontSize: 10, color: MUTED, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>PRECIO USD</label>
+                <input
+                  type="number"
+                  value={newAlertPrice}
+                  onChange={e => setNewAlertPrice(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleCreateAlert()}
+                  placeholder="ej. 70000"
+                  style={{ width: "100%", padding: "8px 10px", background: CARD2, border: `1px solid ${BORDER}`, color: TEXT, fontSize: 12, fontFamily: "inherit", borderRadius: 0, outline: "none", boxSizing: "border-box" as const }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setShowAlertModal(false)}
+                  style={{ flex: 1, padding: "10px 0", border: `1px solid ${BORDER}`, background: "transparent", color: MUTED, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", borderRadius: 0 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateAlert}
+                  disabled={!newAlertPrice || parseFloat(newAlertPrice) <= 0}
+                  style={{
+                    flex: 1, padding: "10px 0", border: `1px solid ${GREEN}50`,
+                    background: `${GREEN}12`, color: GREEN, fontSize: 12, fontWeight: 700,
+                    cursor: "pointer", fontFamily: "inherit", borderRadius: 0,
+                    opacity: (!newAlertPrice || parseFloat(newAlertPrice) <= 0) ? 0.4 : 1,
+                  }}
+                >
+                  Crear alerta
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
