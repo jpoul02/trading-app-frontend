@@ -36,6 +36,14 @@ interface TrendingItem {
   item?: { id: string; name: string; symbol: string; thumb: string; large?: string };
 }
 
+interface Alert {
+  id: string;
+  symbol: string;
+  condition: 'above' | 'below';
+  price: number;
+  triggered: boolean;
+}
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const ACCENT = "oklch(0.5555 0 0)";  // --primary: neutral mid-gray
@@ -301,21 +309,70 @@ function CryptoMini({ c }: { c: CryptoPrice }) {
 
 // ─── Alerts card ──────────────────────────────────────────────────────────────
 
-function AlertsCard() {
+function AlertsCard({ alerts, onNew, onDelete }: {
+  alerts: Alert[];
+  onNew: () => void;
+  onDelete: (id: string) => void;
+}) {
   return (
-    <motion.div
-      variants={cardAnim}
-      className="g-c2"
-      style={{ ...TERM, padding: 22 }}
-    >
-      <SectionLabel>Alertas de precio</SectionLabel>
-      <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 0" }}>
-        <span style={{ fontSize: 22, color: DIM }}>◈</span>
-        <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em" }}>SIN ALERTAS ACTIVAS</p>
-        <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const, maxWidth: 180 }}>
-          La funcionalidad de alertas de precio estará disponible próximamente.
-        </p>
+    <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: MUTED, letterSpacing: "0.01em" }}>Alertas de precio</p>
+        <button
+          onClick={onNew}
+          style={{
+            padding: "3px 10px", border: `1px solid ${GREEN}40`, background: `${GREEN}0a`,
+            color: GREEN, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            borderRadius: 0, letterSpacing: "0.06em",
+          }}
+        >
+          + NUEVO
+        </button>
       </div>
+
+      {alerts.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 0" }}>
+          <span style={{ fontSize: 22, color: DIM }}>◈</span>
+          <p style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em" }}>SIN ALERTAS ACTIVAS</p>
+          <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const, maxWidth: 180 }}>
+            Configurá una alerta para recibir notificación cuando un activo cruce un precio.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 5 }}>
+          {alerts.map(alert => (
+            <div
+              key={alert.id}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 10px",
+                border: `1px solid ${alert.triggered ? `${GREEN}30` : `${DIM}30`}`,
+                background: alert.triggered ? `${GREEN}06` : CARD2,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: alert.triggered ? GREEN : MUTED }}>
+                  {alert.symbol}
+                </span>
+                <span style={{ fontSize: 9, color: DIM }}>
+                  {alert.condition === 'above' ? '↑ >$' : '↓ <$'}{alert.price.toLocaleString("en-US")}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {alert.triggered && (
+                  <span style={{ fontSize: 8, color: GREEN, fontWeight: 700, letterSpacing: "0.1em" }}>ACTIVADA</span>
+                )}
+                <button
+                  onClick={() => onDelete(alert.id)}
+                  style={{ background: "transparent", border: "none", color: DIM, cursor: "pointer", fontSize: 16, padding: "0 2px", lineHeight: 1, fontFamily: "inherit" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -331,6 +388,14 @@ export default function DashboardPage() {
   const [error,     setError]     = useState(false);
   const lastFearGreedFetch        = useRef<number>(0);
   const { setStockBars, setCryptoChange } = useMarketActivity();
+
+  const [alerts,           setAlerts]           = useState<Alert[]>([]);
+  const [showAlertModal,   setShowAlertModal]   = useState(false);
+  const [newAlertSymbol,   setNewAlertSymbol]   = useState('BTC');
+  const [newAlertPrice,    setNewAlertPrice]    = useState('');
+  const [newAlertCondition, setNewAlertCondition] = useState<'above' | 'below'>('above');
+  const [triggeredAlerts,  setTriggeredAlerts]  = useState<Alert[]>([]);
+  const alertsRef = useRef<Alert[]>([]);
 
   async function fetchData(silent = false) {
     if (!silent) { setLoading(true); setError(false); }
@@ -363,6 +428,33 @@ export default function DashboardPage() {
       const coins = tR.value?.coins ?? tR.value ?? [];
       setTrending(Array.isArray(coins) ? coins.slice(0, 3) : []);
     }
+
+    // Check price alerts
+    const priceMap = new Map<string, number>();
+    if (pR.status === "fulfilled") {
+      (pR.value as CryptoPrice[]).slice(0, 8).forEach((c: CryptoPrice) =>
+        priceMap.set(c.symbol.toUpperCase(), c.current_price));
+    }
+    if (sR.status === "fulfilled") {
+      (sR.value as Stock[]).forEach((s: Stock) =>
+        priceMap.set(s.symbol.toUpperCase(), s.price));
+    }
+    if (priceMap.size > 0 && alertsRef.current.length > 0) {
+      const fired: Alert[] = [];
+      const updated = alertsRef.current.map(a => {
+        if (a.triggered) return a;
+        const price = priceMap.get(a.symbol.toUpperCase());
+        if (price === undefined) return a;
+        const hit = a.condition === 'above' ? price > a.price : price < a.price;
+        if (hit) { fired.push({ ...a, triggered: true }); return { ...a, triggered: true }; }
+        return a;
+      });
+      if (fired.length > 0) {
+        setAlerts(updated);
+        setTriggeredAlerts(t => [...t, ...fired]);
+      }
+    }
+
     if (!silent) {
       setError([pR, sR, fR, tR].every(r => r.status === "rejected"));
       setLoading(false);
@@ -374,6 +466,43 @@ export default function DashboardPage() {
     const interval = setInterval(() => fetchData(true), 60_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Keep alertsRef in sync with state so fetchData (stale closure) reads current alerts
+  useEffect(() => { alertsRef.current = alerts; }, [alerts]);
+
+  // Load alerts from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('price_alerts');
+      if (saved) {
+        const parsed = JSON.parse(saved) as Alert[];
+        setAlerts(parsed);
+        alertsRef.current = parsed;
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Persist alerts to localStorage
+  useEffect(() => {
+    localStorage.setItem('price_alerts', JSON.stringify(alerts));
+  }, [alerts]);
+
+  function handleCreateAlert() {
+    const price = parseFloat(newAlertPrice);
+    if (!newAlertSymbol.trim() || isNaN(price) || price <= 0) return;
+    const alert: Alert = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      symbol: newAlertSymbol.trim().toUpperCase(),
+      condition: newAlertCondition,
+      price,
+      triggered: false,
+    };
+    setAlerts(prev => [...prev, alert]);
+    setShowAlertModal(false);
+    setNewAlertPrice('');
+    setNewAlertSymbol('BTC');
+    setNewAlertCondition('above');
+  }
 
   const now     = new Date();
   const dateStr = now.toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -661,7 +790,11 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* ⑪ ALERTS */}
-        <AlertsCard />
+        <AlertsCard 
+          alerts={alerts}
+          onNew={() => setShowAlertModal(true)}
+          onDelete={(id) => setAlerts(prev => prev.filter(a => a.id !== id))}
+        />
 
         {/* ⑫ MARKET STATS */}
         <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>

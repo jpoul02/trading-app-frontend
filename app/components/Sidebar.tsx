@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CreditCard } from "lucide-react";
 import { useMarketActivity, StockBar } from "../context/MarketActivityContext";
 
-const NAV = [
+const NAV: Array<{ href: string; label: string; icon?: React.ElementType }> = [
   { href: "/",          label: "Dashboard"   },
   { href: "/passive",   label: "Inv. Pasiva" },
   { href: "/markets",   label: "Mercados"    },
   { href: "/learn",     label: "Aprende"     },
+  { href: "/cuentas",   label: "Cuentas",    icon: CreditCard },
   { href: "/portfolio", label: "Portafolio"  },
   { href: "/mt5",       label: "MT5 Live"    },
   { href: "/platforms", label: "Plataformas" },
@@ -145,14 +147,14 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
 
       {/* Nav links */}
       <nav style={{ flex: 1, padding: "4px 10px", display: "flex", flexDirection: "column", gap: 1 }}>
-        {NAV.map(({ href, label }) => {
+        {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
               style={{
-                display: "flex", alignItems: "center",
+                display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 10px",
                 fontSize: 13, fontWeight: active ? 600 : 400,
                 color: active ? FG : MUTED,
@@ -162,6 +164,7 @@ export default function Sidebar({ open = false }: Readonly<{ open?: boolean; onC
                 transition: "background 0.12s, color 0.12s",
               }}
             >
+              {Icon && <Icon size={12} style={{ flexShrink: 0, opacity: active ? 1 : 0.55 }} />}
               {label}
               {active && (
                 <span style={{ marginLeft: "auto", width: 5, height: 5, background: GREEN, flexShrink: 0 }} />

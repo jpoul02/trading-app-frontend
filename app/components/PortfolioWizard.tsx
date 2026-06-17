@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import api from "@/lib/api";
 
 export interface PortfolioWizardProps {
