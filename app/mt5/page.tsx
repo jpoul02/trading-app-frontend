@@ -1061,7 +1061,7 @@ export default function MT5Page() {
           </div>
 
           {/* Symbol quick buttons + input */}
-          <div className="flex gap-2 flex-wrap mb-3">
+          <div className="flex gap-2 mb-3 overflow-x-auto whitespace-nowrap pb-1" style={{ scrollbarWidth: "none" }}>
             {QUICK_SYMBOLS.map((s) => (
               <button
                 key={s}
@@ -1120,7 +1120,7 @@ export default function MT5Page() {
 
           {/* Timeframe buttons + refresh selector */}
           <div className="flex gap-2 flex-wrap items-center justify-between mb-4">
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1" style={{ scrollbarWidth: "none" }}>
               {CHART_TIMEFRAMES.map((tf) => (
                 <button
                   key={tf}
@@ -1166,7 +1166,7 @@ export default function MT5Page() {
           </p>
 
           {/* SVG candlestick chart */}
-          <div className="min-h-[320px] md:min-h-[420px]" style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ minHeight: "clamp(300px, 50vh, 500px)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <CandleChart
               candles={candles}
               onHover={(c, x, y) => setHoveredCandle(c ? { candle: c, x, y } : null)}
