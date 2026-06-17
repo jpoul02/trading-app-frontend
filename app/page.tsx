@@ -53,28 +53,64 @@ export default function DashboardPage() {
   async function fetchData() {
     setLoading(true);
     setError(false);
-    try {
-      const [pricesRes, stocksRes, fgRes, trendRes] = await Promise.all([
-        fetch("http://localhost:8000/api/market/prices"),
-        fetch("http://localhost:8000/api/market/stocks"),
-        fetch("http://localhost:8000/api/market/fear-greed"),
-        fetch("http://localhost:8000/api/market/trending"),
-      ]);
-      const [pricesData, stocksData, fgData, trendData] = await Promise.all([
-        pricesRes.json(),
-        stocksRes.json(),
-        fgRes.json(),
-        trendRes.json(),
-      ]);
-      setCryptos(pricesData.slice(0, 8));
-      setStocks(stocksData);
-      setFearGreed(fgData);
-      setTrending(trendData.slice(0, 3));
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    console.log("[Dashboard] Starting all fetches...");
+
+    const [pricesResult, stocksResult, fgResult, trendResult] = await Promise.allSettled([
+      (async () => {
+        console.log("[Dashboard] Fetching prices → http://localhost:8000/api/market/prices");
+        const res = await fetch("http://localhost:8000/api/market/prices");
+        console.log("[Dashboard] Prices status:", res.status);
+        return res.json();
+      })(),
+      (async () => {
+        console.log("[Dashboard] Fetching stocks → http://localhost:8000/api/market/stocks");
+        const res = await fetch("http://localhost:8000/api/market/stocks");
+        console.log("[Dashboard] Stocks status:", res.status);
+        return res.json();
+      })(),
+      (async () => {
+        console.log("[Dashboard] Fetching fear-greed → http://localhost:8000/api/market/fear-greed");
+        const res = await fetch("http://localhost:8000/api/market/fear-greed");
+        console.log("[Dashboard] Fear-greed status:", res.status);
+        return res.json();
+      })(),
+      (async () => {
+        console.log("[Dashboard] Fetching trending → http://localhost:8000/api/market/trending");
+        const res = await fetch("http://localhost:8000/api/market/trending");
+        console.log("[Dashboard] Trending status:", res.status);
+        return res.json();
+      })(),
+    ]);
+
+    if (pricesResult.status === "fulfilled") {
+      setCryptos(pricesResult.value.slice(0, 8));
+    } else {
+      console.error("[Dashboard] Error fetching prices:", pricesResult.reason);
     }
+
+    if (stocksResult.status === "fulfilled") {
+      setStocks(stocksResult.value);
+    } else {
+      console.error("[Dashboard] Error fetching stocks:", stocksResult.reason);
+    }
+
+    if (fgResult.status === "fulfilled") {
+      setFearGreed(fgResult.value);
+    } else {
+      console.error("[Dashboard] Error fetching fear-greed:", fgResult.reason);
+    }
+
+    if (trendResult.status === "fulfilled") {
+      setTrending(trendResult.value.slice(0, 3));
+    } else {
+      console.error("[Dashboard] Error fetching trending:", trendResult.reason);
+    }
+
+    const allFailed = [pricesResult, stocksResult, fgResult, trendResult].every(
+      (r) => r.status === "rejected"
+    );
+    setError(allFailed);
+    setLoading(false);
   }
 
   useEffect(() => {
