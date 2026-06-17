@@ -192,7 +192,7 @@ export default function PassivePage() {
       {/* DCA Calculator */}
       <section className="mb-10">
         <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          Calculadora DCA 📊
+          Calculadora DCA
         </h2>
         <div
           className="rounded-xl p-6"

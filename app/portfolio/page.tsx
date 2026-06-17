@@ -5,10 +5,6 @@ import api from "@/lib/api";
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import {
-  BookOpen, AlertTriangle, ChevronDown, ChevronUp,
-  Lightbulb, Shield, Target, HelpCircle,
-} from "lucide-react";
 import { PortfolioWizard } from "../components/PortfolioWizard";
 
 interface Position {
@@ -199,7 +195,7 @@ function scoreColor(score: number): string {
 function InfoTooltip({ text }: { text: string }) {
   return (
     <span className="relative inline-block group cursor-help ml-1 align-middle">
-      <HelpCircle size={13} style={{ color: "var(--text-muted)" }} />
+      <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700, lineHeight: 1 }}>?</span>
       <span
         className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-56 p-2 rounded-lg text-xs
                    pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-20 leading-relaxed"
@@ -212,9 +208,9 @@ function InfoTooltip({ text }: { text: string }) {
 }
 
 const SCENARIOS = [
-  { key: "crash", emoji: "📉", label: "Crash -30%", multiplier: 0.7, color: "#ff6b35", desc: "Común en cripto y acciones en crisis" },
-  { key: "bull", emoji: "📈", label: "Bull Run +50%", multiplier: 1.5, color: "#00d4aa", desc: "Mercado alcista típico" },
-  { key: "bear", emoji: "😱", label: "Bear Extremo -60%", multiplier: 0.4, color: "#ff4757", desc: "El crypto winter de 2022" },
+  { key: "crash", label: "Crash -30%", multiplier: 0.7, color: "#ff6b35", desc: "Común en cripto y acciones en crisis" },
+  { key: "bull", label: "Bull Run +50%", multiplier: 1.5, color: "#00d4aa", desc: "Mercado alcista típico" },
+  { key: "bear", label: "Bear Extremo -60%", multiplier: 0.4, color: "#ff4757", desc: "El crypto winter de 2022" },
 ];
 
 export default function PortfolioPage() {
@@ -346,7 +342,6 @@ export default function PortfolioPage() {
         <div className="rounded-xl p-5 mb-6"
           style={{ background: "var(--bg-card)", border: "1px solid rgba(61,124,255,0.35)" }}>
           <h2 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Shield size={18} style={{ color: "var(--blue)" }} />
             ¿Qué tengo? — Análisis de tu portafolio
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -385,9 +380,9 @@ export default function PortfolioPage() {
               {concentrationAlert && (
                 <div className="flex items-start gap-2 p-3 rounded-lg text-sm"
                   style={{ background: "rgba(255,211,42,0.08)", border: "1px solid rgba(255,211,42,0.3)" }}>
-                  <AlertTriangle size={16} className="shrink-0 mt-0.5" style={{ color: "#ffd32a" }} />
+                  <span style={{ fontSize: 12, color: "#ffd32a", flexShrink: 0 }}>!</span>
                   <p style={{ color: "var(--text-muted)" }}>
-                    <strong style={{ color: "#ffd32a" }}>⚠️ {concentrationAlert.symbol}</strong> representa el{" "}
+                    <strong style={{ color: "#ffd32a" }}>{concentrationAlert.symbol}</strong> representa el{" "}
                     <strong>{concentrationAlert.percent}%</strong> de tu portafolio. Los expertos recomiendan no superar el 20-30% por activo.
                   </p>
                 </div>
@@ -395,10 +390,10 @@ export default function PortfolioPage() {
               {!concentrationAlert && (
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
                   {riskLevel === "Bajo"
-                    ? "👍 Portafolio conservador. Ideal para preservar capital con crecimiento moderado."
+                    ? "Portafolio conservador. Ideal para preservar capital con crecimiento moderado."
                     : riskLevel === "Moderado"
-                    ? "⚖️ Balance entre crecimiento y estabilidad. Buena diversificación."
-                    : "⚡ Portafolio de alto riesgo. Podés ganar mucho, pero también perder mucho. Invertí solo lo que podés permitirte perder."}
+                    ? "Balance entre crecimiento y estabilidad. Buena diversificación."
+                    : "Portafolio de alto riesgo. Podés ganar mucho, pero también perder mucho. Invertí solo lo que podés permitirte perder."}
                 </p>
               )}
             </div>
@@ -549,7 +544,6 @@ export default function PortfolioPage() {
       {positions.length > 0 && (
         <section className="mb-8">
           <h2 className="text-lg font-bold mb-1 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Target size={18} style={{ color: "var(--blue)" }} />
             Simulador de Escenarios
           </h2>
           <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
@@ -562,7 +556,6 @@ export default function PortfolioPage() {
               return (
                 <div key={sc.key} className="rounded-xl p-5"
                   style={{ background: "var(--bg-card)", border: `1px solid ${sc.color}44` }}>
-                  <p className="text-2xl mb-1">{sc.emoji}</p>
                   <p className="font-bold mb-0.5" style={{ color: sc.color }}>{sc.label}</p>
                   <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>{sc.desc}</p>
                   <p className="text-xl font-black" style={{ color: sc.color }}>
@@ -585,7 +578,6 @@ export default function PortfolioPage() {
       {positions.length > 0 && (
         <section className="mb-8">
           <h2 className="text-lg font-bold mb-1 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <BookOpen size={18} style={{ color: "var(--green)" }} />
             Aprende sobre tus posiciones
           </h2>
           <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
@@ -620,9 +612,7 @@ export default function PortfolioPage() {
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={rc}>
                         Riesgo {info.risk}
                       </span>
-                      {isExpanded
-                        ? <ChevronUp size={16} style={{ color: "var(--text-muted)" }} />
-                        : <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />}
+                      <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{isExpanded ? "▲" : "▼"}</span>
                     </div>
                   </button>
 
@@ -666,7 +656,6 @@ export default function PortfolioPage() {
       {positions.length > 0 && recommendations.length > 0 && (
         <section>
           <h2 className="text-lg font-bold mb-1 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Lightbulb size={18} style={{ color: "#ffd32a" }} />
             ¿Qué aprender ahora?
           </h2>
           <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>

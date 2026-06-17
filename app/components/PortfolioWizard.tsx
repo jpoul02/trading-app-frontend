@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, ChevronRight, X } from "lucide-react";
 import api from "@/lib/api";
 
 export interface PortfolioWizardProps {
@@ -189,7 +188,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
               color: done ? "#0a0f1e" : active ? "var(--green)" : "var(--text-muted)",
               transition: "all 0.3s",
             }}>
-              {done ? <Check size={14} /> : n}
+              {done ? "✓" : n}
             </div>
             <span style={{
               fontSize: "11px", marginTop: "4px", whiteSpace: "nowrap",
@@ -265,9 +264,9 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "28px" }}>
               {([
-                { key: "conservative" as Profile, emoji: "🛡️", label: "Conservador", desc: "Prefiero dormir tranquilo. Acepto menos ganancias a cambio de menos riesgo.", accent: "#00d4aa", bg: "rgba(0,212,170,0.08)" },
-                { key: "moderate"     as Profile, emoji: "⚖️", label: "Moderado",    desc: "Quiero crecer, pero sin arriesgar todo. Mezcla de seguridad y oportunidad.",       accent: "#3d7cff", bg: "rgba(61,124,255,0.08)" },
-                { key: "aggressive"   as Profile, emoji: "🚀", label: "Agresivo",    desc: "Entiendo el riesgo y busco máximos retornos. Puedo aguantar caídas fuertes.",     accent: "#ff6b35", bg: "rgba(255,107,53,0.08)" },
+                { key: "conservative" as Profile, label: "Conservador", desc: "Prefiero dormir tranquilo. Acepto menos ganancias a cambio de menos riesgo.", accent: "#00d4aa", bg: "rgba(0,212,170,0.08)" },
+                { key: "moderate"     as Profile, label: "Moderado",    desc: "Quiero crecer, pero sin arriesgar todo. Mezcla de seguridad y oportunidad.",       accent: "#3d7cff", bg: "rgba(61,124,255,0.08)" },
+                { key: "aggressive"   as Profile, label: "Agresivo",    desc: "Entiendo el riesgo y busco máximos retornos. Puedo aguantar caídas fuertes.",     accent: "#ff6b35", bg: "rgba(255,107,53,0.08)" },
               ] as const).map((opt) => {
                 const sel = profile === opt.key;
                 return (
@@ -282,15 +281,12 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                       textAlign: "left", transition: "all 0.2s",
                     }}
                   >
-                    <span style={{ fontSize: "28px", flexShrink: 0, lineHeight: "1" }}>{opt.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: "700", color: sel ? opt.accent : "var(--text-primary)", marginBottom: "3px" }}>{opt.label}</p>
                       <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>{opt.desc}</p>
                     </div>
                     {sel && (
-                      <div style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%", background: opt.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Check size={12} color="#0a0f1e" />
-                      </div>
+                      <span style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%", background: opt.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "#0a0f1e", fontWeight: 700 }}>✓</span>
                     )}
                   </button>
                 );
@@ -301,7 +297,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
               disabled={!profile}
               style={{ ...btnBase, background: profile ? "var(--green)" : "var(--border)", color: profile ? "#0a0f1e" : "var(--text-muted)", cursor: profile ? "pointer" : "not-allowed" }}
             >
-              Siguiente <ChevronRight size={16} />
+              Siguiente →
             </button>
           </div>
         )}
@@ -357,7 +353,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                   disabled={budget <= 0}
                   style={{ ...btnBase, background: budget > 0 ? "var(--green)" : "var(--border)", color: budget > 0 ? "#0a0f1e" : "var(--text-muted)", cursor: budget > 0 ? "pointer" : "not-allowed" }}
                 >
-                  Siguiente <ChevronRight size={16} />
+                  Siguiente →
                 </button>
               </div>
             </div>
@@ -401,7 +397,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                       border: `2px solid ${sel ? "var(--green)" : "var(--border)"}`,
                       transition: "all 0.2s",
                     }}>
-                      {sel && <Check size={12} color="#0a0f1e" />}
+                      {sel && <span style={{ fontSize: "11px", color: "#0a0f1e", fontWeight: 700 }}>✓</span>}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
@@ -430,7 +426,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                 disabled={selectedAssets.length === 0}
                 style={{ ...btnBase, background: selectedAssets.length > 0 ? "var(--green)" : "var(--border)", color: selectedAssets.length > 0 ? "#0a0f1e" : "var(--text-muted)", cursor: selectedAssets.length > 0 ? "pointer" : "not-allowed" }}
               >
-                Siguiente <ChevronRight size={16} />
+                Siguiente →
               </button>
             </div>
           </div>
@@ -481,7 +477,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                           fontSize: "12px", fontWeight: "600", color: "var(--green)",
                           background: "rgba(0,212,170,0.12)", padding: "2px 10px", borderRadius: "999px",
                         }}>
-                          <Check size={12} /> Agregado
+                          ✓ Agregado
                         </span>
                       )}
                     </div>
@@ -549,7 +545,7 @@ export function PortfolioWizard({ onComplete, budget: initialBudget = 0 }: Portf
                 onClick={finish}
                 style={{ ...btnBase, background: "var(--green)", color: "#0a0f1e", cursor: "pointer", fontWeight: "700" }}
               >
-                Ir a mi portafolio <ChevronRight size={16} />
+                Ir a mi portafolio →
               </button>
             </div>
           </div>

@@ -1,6 +1,5 @@
 const platforms = [
   {
-    emoji: "🤝",
     name: "eToro",
     description: "Plataforma de social trading. Copia las carteras de traders exitosos automáticamente.",
     pros: [
@@ -21,7 +20,6 @@ const platforms = [
     url: "www.etoro.com",
   },
   {
-    emoji: "🏦",
     name: "Interactive Brokers",
     description: "Bróker global profesional con acceso a prácticamente todos los mercados del mundo.",
     pros: [
@@ -42,7 +40,6 @@ const platforms = [
     url: "www.interactivebrokers.com",
   },
   {
-    emoji: "🟡",
     name: "Binance",
     description: "El exchange de criptomonedas más grande del mundo por volumen.",
     pros: [
@@ -64,7 +61,6 @@ const platforms = [
     note: "Acceso vía Latamex",
   },
   {
-    emoji: "🔵",
     name: "Coinbase",
     description: "El exchange de cripto más regulado y confiable de Estados Unidos.",
     pros: [
@@ -91,7 +87,7 @@ export default function PlatformsPage() {
     <div className="max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-          🏦 Plataformas de Inversión
+          Plataformas de Inversión
         </h1>
         <p className="mt-1" style={{ color: "var(--text-muted)" }}>
           Comparativa de las mejores plataformas disponibles desde Guatemala.
@@ -108,7 +104,6 @@ export default function PlatformsPage() {
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{p.emoji}</span>
                 <div>
                   <h2 className="font-bold text-lg" style={{ color: "var(--text-primary)" }}>
                     {p.name}
