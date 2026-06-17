@@ -3,17 +3,18 @@
 import { useEffect, useState } from "react";
 
 interface ETF {
-  ticker: string;
+  symbol: string;
   name: string;
   description: string;
-  annual_return: number;
-  type: string;
+  annual_return_pct: number;
+  type?: string;
 }
 
 interface StakingItem {
-  crypto: string;
-  apy: number;
-  description: string;
+  asset: string;
+  name: string;
+  apy_pct: number;
+  risk?: string;
 }
 
 interface DCARow {
@@ -130,14 +131,14 @@ export default function PassivePage() {
             ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} />)
             : etfs.map((etf, i) => (
                 <div
-                  key={etf.ticker ?? etf.name ?? `etf-${i}`}
+                  key={etf.symbol ?? etf.name ?? `etf-${i}`}
                   className="rounded-xl p-5"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <span className="font-bold text-lg" style={{ color: "var(--text-primary)" }}>
-                        {etf.ticker}
+                        {etf.symbol}
                       </span>
                       <span className="ml-2 text-sm" style={{ color: "var(--text-muted)" }}>
                         {etf.name}
@@ -147,14 +148,14 @@ export default function PassivePage() {
                       className="text-xs px-2 py-1 rounded-full font-medium"
                       style={{ background: "rgba(61,124,255,0.15)", color: "var(--blue)" }}
                     >
-                      {etf.type}
+                      {etf.type ?? "ETF"}
                     </span>
                   </div>
                   <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>
                     {etf.description}
                   </p>
                   <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>
-                    Retorno histórico anual: ~{etf.annual_return}%
+                    Retorno histórico anual: ~{etf.annual_return_pct}%
                   </p>
                 </div>
               ))}
@@ -274,20 +275,20 @@ export default function PassivePage() {
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} />)
             : staking.map((s, i) => (
                 <div
-                  key={s.crypto ?? `staking-${i}`}
+                  key={s.asset ?? `staking-${i}`}
                   className="rounded-xl p-5"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold" style={{ color: "var(--text-primary)" }}>
-                      {s.crypto}
+                      {s.asset}
                     </span>
                     <span className="text-lg font-black" style={{ color: "var(--green)" }}>
-                      {s.apy}% APY
+                      {s.apy_pct}% APY
                     </span>
                   </div>
                   <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    {s.description}
+                    {s.name}
                   </p>
                 </div>
               ))}

@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 
 interface Lesson {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  level: "principiante" | "intermedio" | "avanzado";
-  duration: string;
+  level: string;
+  duration_min: number;
+  icon?: string;
   content?: string;
 }
 
@@ -17,8 +18,9 @@ interface GlossaryTerm {
 }
 
 function levelColor(level: string) {
-  if (level === "principiante") return { bg: "rgba(0,212,170,0.12)", color: "var(--green)" };
-  if (level === "intermedio") return { bg: "rgba(61,124,255,0.12)", color: "var(--blue)" };
+  const l = level.toLowerCase();
+  if (l === "principiante") return { bg: "rgba(0,212,170,0.12)", color: "var(--green)" };
+  if (l === "intermedio")   return { bg: "rgba(61,124,255,0.12)", color: "var(--blue)" };
   return { bg: "rgba(255,71,87,0.12)", color: "var(--red)" };
 }
 
@@ -128,7 +130,7 @@ export default function LearnPage() {
               ))
             : lessons.map((lesson) => {
                 const lc = levelColor(lesson.level);
-                const done = completed.includes(lesson.id);
+                const done = completed.includes(String(lesson.id));
                 return (
                   <button
                     key={lesson.id}
@@ -155,7 +157,7 @@ export default function LearnPage() {
                         {lesson.level}
                       </span>
                       <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        {lesson.duration}
+                        {lesson.duration_min} min
                       </span>
                     </div>
                     <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
@@ -248,13 +250,13 @@ export default function LearnPage() {
             )}
             <button
               onClick={() => {
-                markComplete(selectedLesson.id);
+                markComplete(String(selectedLesson.id));
                 setSelectedLesson(null);
               }}
               className="mt-6 px-5 py-2 rounded-lg font-semibold text-sm cursor-pointer"
               style={{ background: "var(--green)", color: "#0a0f1e" }}
             >
-              {completed.includes(selectedLesson.id) ? "Marcar como pendiente" : "Marcar como completado ✓"}
+              {completed.includes(String(selectedLesson.id)) ? "Marcar como pendiente" : "Marcar como completado ✓"}
             </button>
           </div>
         </div>

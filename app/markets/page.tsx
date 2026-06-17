@@ -19,6 +19,7 @@ interface Stock {
   symbol?: string;
   name?: string;
   price?: number;
+  change_pct_24h?: number;
   change_percent?: number;
 }
 
@@ -223,7 +224,7 @@ export default function MarketsPage() {
                   style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
                 >
                   <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>
-                    {s.ticker}
+                    {s.ticker ?? s.symbol}
                   </td>
                   <td className="px-4 py-3" style={{ color: "var(--text-primary)" }}>
                     {s.name}
@@ -233,10 +234,10 @@ export default function MarketsPage() {
                   </td>
                   <td
                     className="text-right px-4 py-3 font-semibold"
-                    style={{ color: (s.change_percent ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
+                    style={{ color: (s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}
                   >
-                    {(s.change_percent ?? 0) >= 0 ? "+" : ""}
-                    {s.change_percent?.toFixed(2)}%
+                    {(s.change_pct_24h ?? s.change_percent ?? 0) >= 0 ? "+" : ""}
+                    {s.change_pct_24h ?? s.change_percent?.toFixed(2)}%
                   </td>
                 </tr>
               ))
