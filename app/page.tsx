@@ -36,6 +36,13 @@ interface TrendingItem {
   item?: { id: string; name: string; symbol: string; thumb: string; large?: string };
 }
 
+interface GlobalStats {
+  btc_dominance: number;
+  total_market_cap: number;
+  total_volume_24h: number;
+  active_cryptocurrencies: number;
+}
+
 interface Alert {
   id: string;
   symbol: string;
@@ -80,6 +87,13 @@ function brutalCard(color: string): React.CSSProperties {
 }
 
 function changeColor(v: number) { return v >= 0 ? GREEN : RED; }
+
+function formatLargeNumber(n: number): string {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (n >= 1e9)  return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6)  return `$${(n / 1e6).toFixed(1)}M`;
+  return `$${n.toLocaleString()}`;
+}
 
 function fearColor(v: number) {
   if (v <= 25) return RED;
@@ -407,6 +421,8 @@ export default function DashboardPage() {
   const lastFearGreedFetch        = useRef<number>(0);
   const { setStockBars, setCryptoChange } = useMarketActivity();
 
+  const [globalStats,      setGlobalStats]      = useState<GlobalStats | null>(null);
+
   const [alerts,           setAlerts]           = useState<Alert[]>([]);
   const [showAlertModal,   setShowAlertModal]   = useState(false);
   const [newAlertSymbol,   setNewAlertSymbol]   = useState('BTC');
@@ -418,13 +434,14 @@ export default function DashboardPage() {
   async function fetchData(silent = false) {
     if (!silent) { setLoading(true); setError(false); }
     const shouldRefreshFG = Date.now() - lastFearGreedFetch.current >= 300_000;
-    const [pR, sR, fR, tR] = await Promise.allSettled([
+    const [pR, sR, fR, tR, gR] = await Promise.allSettled([
       api.get('/api/market/prices').then(r => r.data),
       api.get('/api/market/stocks').then(r => r.data),
       shouldRefreshFG
         ? api.get('/api/market/fear-greed').then(r => r.data)
         : Promise.resolve(null),
       api.get('/api/market/trending').then(r => r.data),
+      api.get('/api/market/global').then(r => r.data),
     ]);
     if (pR.status === "fulfilled") {
       setCryptos(pR.value.slice(0, 8));
@@ -445,6 +462,9 @@ export default function DashboardPage() {
     if (tR.status === "fulfilled") {
       const coins = tR.value?.coins ?? tR.value ?? [];
       setTrending(Array.isArray(coins) ? coins.slice(0, 3) : []);
+    }
+    if (gR.status === "fulfilled" && !gR.value?.error) {
+      setGlobalStats(gR.value);
     }
 
     // Check price alerts
@@ -474,7 +494,7 @@ export default function DashboardPage() {
     }
 
     if (!silent) {
-      setError([pR, sR, fR, tR].every(r => r.status === "rejected"));
+      setError([pR, sR, fR, tR, gR].every(r => r.status === "rejected"));
       setLoading(false);
     }
   }
@@ -818,27 +838,28 @@ export default function DashboardPage() {
         {/* ⑫ MARKET STATS */}
         <motion.div variants={cardAnim} className="g-c2" style={{ ...TERM, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <SectionLabel>Estadísticas globales</SectionLabel>
-            <span style={{ fontSize: 7, color: DIM, letterSpacing: "0.1em", border: `1px solid ${DIM}40`, padding: "2px 6px" }}>
-              SIN FUENTE EN TIEMPO REAL
+            <SectionLabel tooltip="Estadísticas del mercado crypto global en tiempo real vía CoinGecko.">Estadísticas globales</SectionLabel>
+            <span style={{ fontSize: 7, color: GREEN, letterSpacing: "0.1em", border: `1px solid ${GREEN}40`, padding: "2px 6px" }}>
+              COINGECKO
             </span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
-            {[
-              { label: "DOMINANCIA BTC",  color: AMBER },
-              { label: "MKT CAP GLOBAL",  color: BLUE  },
-              { label: "VOLUMEN 24H",      color: GREEN },
-              { label: "CRIPTOS ACTIVAS", color: MUTED },
-            ].map(stat => (
-              <div key={stat.label} style={{ padding: "12px 14px", border: `1px solid ${DIM}40`, background: "rgba(240,180,41,0.015)" }}>
-                <p style={{ fontSize: 7, color: DIM, letterSpacing: "0.16em", marginBottom: 6, textTransform: "uppercase" as const }}>{stat.label}</p>
-                <p style={{ color: DIM, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>—</p>
-              </div>
-            ))}
-          </div>
-          <p style={{ color: DIM, fontSize: 9, letterSpacing: "0.06em", textAlign: "center" as const }}>
-            Esta sección requiere una fuente de datos de mercado global. Sin conexión a CoinGecko Pro o CoinMarketCap.
-          </p>
+          {loading ? (
+            <><PulseLoader /><PulseLoader /><PulseLoader /><PulseLoader /></>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {[
+                { label: "DOMINANCIA BTC",  value: globalStats ? `${globalStats.btc_dominance}%`                     : "—", color: AMBER },
+                { label: "MKT CAP GLOBAL",  value: globalStats ? formatLargeNumber(globalStats.total_market_cap)      : "—", color: BLUE  },
+                { label: "VOLUMEN 24H",      value: globalStats ? formatLargeNumber(globalStats.total_volume_24h)      : "—", color: GREEN },
+                { label: "CRIPTOS ACTIVAS", value: globalStats ? globalStats.active_cryptocurrencies.toLocaleString() : "—", color: MUTED },
+              ].map(stat => (
+                <div key={stat.label} style={{ padding: "12px 14px", border: `1px solid ${DIM}40`, background: "rgba(240,180,41,0.015)" }}>
+                  <p style={{ fontSize: 7, color: DIM, letterSpacing: "0.16em", marginBottom: 6, textTransform: "uppercase" as const }}>{stat.label}</p>
+                  <p style={{ color: globalStats ? stat.color : DIM, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
       </motion.div>
