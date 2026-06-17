@@ -13,7 +13,9 @@ export const metadata: Metadata = {
   title: 'JOTAPOL Trading App',
   description: 'Plataforma de inversión y trading educativo — JOTAPOL',
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
   },
 };
 
