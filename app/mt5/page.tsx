@@ -1166,7 +1166,7 @@ export default function MT5Page() {
           </p>
 
           {/* SVG candlestick chart */}
-          <div style={{ minHeight: "clamp(300px, 50vh, 500px)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ height: "clamp(300px, 50vh, 500px)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <CandleChart
               candles={candles}
               onHover={(c, x, y) => setHoveredCandle(c ? { candle: c, x, y } : null)}
