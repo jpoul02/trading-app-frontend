@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trading App — Frontend
 
-## Getting Started
+Next.js 15 · TypeScript · Tailwind · desplegado en Railway.
 
-First, run the development server:
+## Variables de entorno
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Crear `frontend/.env.local` para desarrollo local:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Para producción (Railway), poner esa misma variable con la URL de ngrok:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_API_URL=https://abc123.ngrok-free.app
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Una sola variable cubre tanto las llamadas REST como los WebSockets — el frontend convierte `https://` → `wss://` automáticamente.
 
-## Learn More
+## Desarrollo local
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+El backend debe estar corriendo en `localhost:8000` (ver `backend/START.bat`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## WebSockets — datos en tiempo real
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+El frontend mantiene conexiones WebSocket persistentes al backend local (vía ngrok en producción). No hay polling pesado — los datos llegan solos.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Cómo funciona la URL
+
+`lib/ws.ts` convierte `NEXT_PUBLIC_API_URL` al protocolo WebSocket:
+
+```
+https://abc123.ngrok-free.app  →  wss://abc123.ngrok-free.app
+http://localhost:8000           →  ws://localhost:8000
+```
+
+### Hooks
+
+**`useAccountWs()`** — `app/hooks/use-account-ws.ts`
+
+Pushea cuenta MT5 + posiciones abiertas cada **1 segundo**.
+
+```typescript
+const { ready, connected, error, account, positions } = useAccountWs();
+
+// account → { login, name, balance, equity, profit, margin, margin_free, currency, leverage, server }
+// positions → [{ ticket, symbol, type, volume, open_price, current_price, profit, ... }]
+// ready → false hasta que llega el primer mensaje (muestra skeleton mientras tanto)
+```
+
+**`usePricesWs(symbols)`** — `app/hooks/use-prices-ws.ts`
+
+Pushea precios tick cada **500 ms**. Reconnecta si cambia el array de símbolos.
+
+```typescript
+const { ready, prices } = usePricesWs(["EURUSD", "XAUUSD"]);
+
+// prices["EURUSD"] → { bid, ask, spread, digits, time }
+```
+
+### Reconexión automática
+
+Ambos hooks reconectan solos si el WS cae (backend reiniciado, ngrok desconectado, etc.). Reintentan cada 2 segundos.
+
+### Qué reemplazó al polling anterior
+
+| Antes | Ahora | Frecuencia |
+|-------|-------|-----------|
+| `setInterval(fetchStatus, 10s)` | `useAccountWs()` | 1s |
+| `setInterval(fetchPositions, 5s)` | `useAccountWs()` | 1s |
+| `fetchOrderPrice()` manual | `usePricesWs([orderSymbol])` | 500ms live |
+| `setInterval(fetchHistory, 30s)` | sigue en REST | 30s (no necesita más) |
+
+### Endpoints WebSocket del backend
+
+| URL | Frecuencia | Payload |
+|-----|-----------|---------|
+| `GET /api/mt5/ws/account` | 1 s | `{ connected, account, positions }` |
+| `GET /api/mt5/ws/prices?symbols=X,Y` | 500 ms | `{ EURUSD: { bid, ask, spread, digits, time }, ... }` |

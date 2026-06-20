@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { useAccountWs } from "@/app/hooks/use-account-ws";
+import { usePricesWs } from "@/app/hooks/use-prices-ws";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -506,14 +508,11 @@ function ConfirmOrderModal({
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MT5Page() {
-  const [status, setStatus] = useState<MT5Status | null>(null);
-  const [positions, setPositions] = useState<MT5Position[]>([]);
   const [deals, setDeals] = useState<MT5Deal[]>([]);
   const [symbolInput, setSymbolInput] = useState("EURUSD");
   const [priceResult, setPriceResult] = useState<MT5Price | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [openItem, setOpenItem] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [chartSymbol, setChartSymbol] = useState("EURUSD");
   const [chartTf, setChartTf] = useState("H1");
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -529,30 +528,29 @@ export default function MT5Page() {
   const [orderTP, setOrderTP] = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderResult, setOrderResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [orderPrice, setOrderPrice] = useState<MT5Price | null>(null);
-  const [orderPriceLoading, setOrderPriceLoading] = useState(false);
   const [closeLoadingTicket, setCloseLoadingTicket] = useState<number | null>(null);
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds; 0 = manual
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
 
-  async function fetchStatus(silent = false) {
-    try {
-      const { data } = await api.get('/api/mt5/status');
-      setStatus(data);
-    } catch {
-      setStatus({ connected: false, error: "No se pudo conectar al servidor" });
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }
+  // ── WebSocket data ────────────────────────────────────────────────────────
+  const acctWs = useAccountWs();
+  const orderPricesWs = usePricesWs([orderSymbol]);
 
-  async function fetchPositions() {
-    try {
-      const { data } = await api.get('/api/mt5/positions');
-      setPositions(data.positions ?? []);
-    } catch {}
-  }
+  const status: MT5Status | null = acctWs.account
+    ? { connected: true, ...acctWs.account }
+    : acctWs.ready
+    ? { connected: false, error: acctWs.error }
+    : null;
+  const positions = acctWs.positions;
+  const loading = !acctWs.ready;
+
+  const orderPriceLoading = !orderPricesWs.ready;
+  const orderPrice: MT5Price | null = (() => {
+    const tick = orderPricesWs.prices[orderSymbol];
+    if (!tick) return null;
+    return { connected: true, symbol: orderSymbol, bid: tick.bid, ask: tick.ask, spread: tick.spread, digits: tick.digits };
+  })();
 
   async function fetchHistory() {
     try {
@@ -580,20 +578,6 @@ export default function MT5Page() {
     }
   }
 
-  async function fetchOrderPrice(sym: string) {
-    if (!sym.trim()) return;
-    setOrderPriceLoading(true);
-    setOrderPrice(null);
-    try {
-      const { data } = await api.get(`/api/mt5/price/${sym.trim().toUpperCase()}`);
-      setOrderPrice(data);
-    } catch {
-      setOrderPrice(null);
-    } finally {
-      setOrderPriceLoading(false);
-    }
-  }
-
   function sendOrder(action: "buy" | "sell") {
     const sym = orderSymbol.trim().toUpperCase();
     setPendingAction({ kind: "order", action, sym, volume: orderVolume, sl: orderSL, tp: orderTP });
@@ -613,7 +597,6 @@ export default function MT5Page() {
       });
       if (data.success) {
         setOrderResult({ success: true, message: `Orden #${data.order} ejecutada a ${data.price}` });
-        fetchPositions();
       } else {
         setOrderResult({ success: false, message: data.error ?? "Error desconocido" });
       }
@@ -635,7 +618,6 @@ export default function MT5Page() {
     try {
       const { data } = await api.post(`/api/mt5/close/${ticket}`);
       if (data.success) {
-        fetchPositions();
         fetchHistory();
       } else {
         setCloseError(`Error al cerrar: ${data.error}`);
@@ -663,24 +645,9 @@ export default function MT5Page() {
   }
 
   useEffect(() => {
-    fetchOrderPrice(orderSymbol);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderSymbol]);
-
-  useEffect(() => {
-    fetchStatus();
-    fetchPositions();
     fetchHistory();
-
-    const s = setInterval(() => fetchStatus(true), 10_000);
-    const p = setInterval(fetchPositions, 5_000);
     const h = setInterval(fetchHistory, 30_000);
-
-    return () => {
-      clearInterval(s);
-      clearInterval(p);
-      clearInterval(h);
-    };
+    return () => clearInterval(h);
   }, []);
 
   useEffect(() => {
