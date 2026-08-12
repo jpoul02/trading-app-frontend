@@ -160,9 +160,13 @@ function ResetKillSwitchModal({ onConfirm, onCancel }: Readonly<{ onConfirm: () 
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+const TRADES_PAGE_SIZE = 10;
+
 export default function BotPage() {
   const [status, setStatus] = useState<BotStatus | null>(null);
   const [trades, setTrades] = useState<BotTrade[]>([]);
+  const [tradesTotal, setTradesTotal] = useState(0);
+  const [tradesPage, setTradesPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -211,24 +215,30 @@ export default function BotPage() {
     setSelectedSymbols((prev) => (prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]));
   }
 
-  async function fetchTrades() {
+  async function fetchTrades(page: number) {
     try {
-      const { data } = await api.get<BotTrade[]>("/api/bot/trades");
-      setTrades(data);
+      const { data } = await api.get<{ trades: BotTrade[]; total: number }>("/api/bot/trades", {
+        params: { limit: TRADES_PAGE_SIZE, offset: page * TRADES_PAGE_SIZE },
+      });
+      setTrades(data.trades);
+      setTradesTotal(data.total);
     } catch {}
   }
 
   useEffect(() => {
     fetchStatus();
     fetchConfig();
-    fetchTrades();
     fetchAvailableSymbols();
-    const interval = setInterval(() => {
-      fetchStatus();
-      fetchTrades();
-    }, 10_000);
+    const interval = setInterval(fetchStatus, 10_000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    fetchTrades(tradesPage);
+    const interval = setInterval(() => fetchTrades(tradesPage), 10_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradesPage]);
 
   async function toggleRunning() {
     if (!status) return;
@@ -565,12 +575,16 @@ export default function BotPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 420 }}>
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
                     {["Símbolo", "Modo", "Acción", "Volumen", "Precio", "SL", "TP", "Estado", "Profit", "Abierta", "Razón"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 whitespace-nowrap"
+                        style={{ color: "var(--text-muted)", background: "var(--bg-card)", position: "sticky", top: 0, zIndex: 1 }}
+                      >
                         {h}
                       </th>
                     ))}
@@ -636,6 +650,31 @@ export default function BotPage() {
             </div>
           )}
         </div>
+        {tradesTotal > TRADES_PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {tradesPage * TRADES_PAGE_SIZE + 1}–{Math.min((tradesPage + 1) * TRADES_PAGE_SIZE, tradesTotal)} de {tradesTotal}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTradesPage((p) => Math.max(0, p - 1))}
+                disabled={tradesPage === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              >
+                ← Anterior
+              </button>
+              <button
+                onClick={() => setTradesPage((p) => p + 1)}
+                disabled={(tradesPage + 1) * TRADES_PAGE_SIZE >= tradesTotal}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
