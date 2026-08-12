@@ -3,18 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, CreditCard } from "lucide-react";
+import { Bot, CreditCard, TrendingUp } from "lucide-react";
 import { useMarketActivity, StockBar } from "../context/MarketActivityContext";
 
 const NAV: Array<{ href: string; label: string; icon?: React.ElementType }> = [
-  { href: "/",          label: "Dashboard"   },
-  { href: "/passive",   label: "Inv. Pasiva" },
-  { href: "/markets",   label: "Mercados"    },
-  { href: "/learn",     label: "Aprende"     },
-  { href: "/cuentas",   label: "Cuentas",    icon: CreditCard },
-  { href: "/portfolio", label: "Portafolio"  },
-  { href: "/mt5",       label: "MT5 Live"    },
-  { href: "/bot",       label: "Bot Trading", icon: Bot },
+  { href: "/",             label: "Dashboard"    },
+  { href: "/passive",      label: "Inv. Pasiva"  },
+  { href: "/markets",      label: "Mercados"     },
+  { href: "/learn",        label: "Aprende"      },
+  { href: "/cuentas",      label: "Cuentas",     icon: CreditCard },
+  { href: "/portfolio",    label: "Portafolio"   },
+  { href: "/mt5",          label: "MT5 Live"     },
+  { href: "/bot",          label: "Bot Trading",  icon: Bot },
+  { href: "/estrategias",  label: "Estrategias",  icon: TrendingUp },
   { href: "/platforms", label: "Plataformas" },
 ];
 
