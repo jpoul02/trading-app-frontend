@@ -42,6 +42,58 @@ interface BotTrade {
 
 const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
 
+const GLOSSARY = [
+  {
+    key: "symbol",
+    term: "Símbolo",
+    short: "El instrumento que el bot opera (ej. EURUSD).",
+    detail:
+      "Cada símbolo es un par o activo distinto — EURUSD es Euro contra Dólar, GBPUSD es Libra contra Dólar. Cada uno se mueve distinto: distinta volatilidad, distinto spread. El bot analiza cada símbolo por separado y puede tener como máximo una posición abierta por símbolo a la vez.",
+  },
+  {
+    key: "timeframe",
+    term: "Timeframe",
+    short: "Cada cuánto se forma una vela nueva que el bot analiza.",
+    detail:
+      "M1 = una vela cada 1 minuto, M15 = cada 15 minutos, H1 = cada hora. El bot solo decide cuando una vela termina de formarse (se \"cierra\") — mientras se está formando, los indicadores todavía están cambiando y no sirven para decidir. Timeframe chico = reacciona rápido pero con más ruido y señales falsas. Timeframe grande = más lento pero más confiable.",
+  },
+  {
+    key: "signal",
+    term: "Señal fuerte (COMPRAR/VENDER FUERTE)",
+    short: "El bot solo abre operación con estas dos señales, ninguna otra.",
+    detail:
+      "El bot calcula RSI y MACD en cada vela cerrada. Solo abre posición cuando la combinación da \"COMPRAR FUERTE\" o \"VENDER FUERTE\" — señales intermedias como \"TENDENCIA ALCISTA/BAJISTA\" o \"ESPERAR\" no disparan ninguna acción. Por diseño: mejor perderse una entrada dudosa que abrir con poca convicción.",
+  },
+  {
+    key: "risk_pct",
+    term: "Riesgo por operación (%)",
+    short: "Cuánto del balance puede perder el bot en un solo trade.",
+    detail:
+      "Con 1% y balance de $100,000, el bot arriesga máximo $1,000 por operación — nunca más, sin importar el símbolo. El tamaño de la posición (lotes) se calcula automáticamente para que, si toca el Stop Loss, la pérdida sea exactamente ese porcentaje.",
+  },
+  {
+    key: "daily_loss",
+    term: "Límite de pérdida diaria (%)",
+    short: "Si el bot pierde esto en un día, se apaga solo.",
+    detail:
+      "Se mide contra el balance al inicio del día (server time). Si el equity cae ese porcentaje o más, el kill switch se activa: el bot deja de abrir operaciones nuevas hasta que lo reactivés manualmente. No cierra las posiciones que ya tenía abiertas — esas siguen con su propio Stop Loss.",
+  },
+  {
+    key: "drawdown",
+    term: "Drawdown máximo (%)",
+    short: "Igual que el límite diario, pero acumulado desde el inicio.",
+    detail:
+      "Mide la caída total del equity respecto al balance con el que arrancó la cuenta la primera vez que corrió el bot — no se resetea cada día como el límite diario. Es la última línea de defensa contra una racha larga de pérdidas.",
+  },
+  {
+    key: "kill_switch",
+    term: "Kill switch",
+    short: "El freno de emergencia automático del bot.",
+    detail:
+      "Se activa solo cuando se cruza el límite diario o el drawdown máximo. Mientras está activo, el bot no abre ninguna operación nueva — solo vos podés reactivarlo desde el botón \"Reactivar\", después de revisar qué pasó. Es la protección para que un bug o una mala racha no te vacíe la cuenta mientras no estás mirando.",
+  },
+];
+
 const REASON_LABELS: Record<string, string> = {
   daily_loss_limit: "Límite de pérdida diaria alcanzado",
   max_drawdown: "Drawdown máximo alcanzado",
@@ -123,6 +175,7 @@ export default function BotPage() {
   const [maxDrawdownPct, setMaxDrawdownPct] = useState(10);
   const [configLoading, setConfigLoading] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
+  const [openItem, setOpenItem] = useState<string | null>(null);
 
   async function fetchStatus() {
     try {
@@ -361,6 +414,43 @@ export default function BotPage() {
           </div>
         </section>
       )}
+
+      {/* ── Educational accordion ───────────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          ¿Qué significa cada cosa?
+        </h2>
+        <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          {GLOSSARY.map((item, i) => {
+            const open = openItem === item.key;
+            return (
+              <div key={item.key} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                <button
+                  onClick={() => setOpenItem(open ? null : item.key)}
+                  className="w-full flex items-center gap-3 px-5 py-4 text-left cursor-pointer transition-colors hover:opacity-80"
+                  style={{ background: "transparent", border: "none", fontFamily: "inherit" }}
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{item.term}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{item.short}</p>
+                  </div>
+                  <span
+                    className="text-xs shrink-0 transition-transform duration-200"
+                    style={{ color: "var(--text-muted)", display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+                  >
+                    ▾
+                  </span>
+                </button>
+                {open && (
+                  <div className="px-5 pb-4 text-sm leading-relaxed" style={{ color: "var(--text-muted)", paddingLeft: "3.75rem" }}>
+                    {item.detail}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* ── Config ───────────────────────────────────────────────────────── */}
       <section className="mb-8">
