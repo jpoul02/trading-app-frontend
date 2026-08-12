@@ -594,7 +594,7 @@ export default function BotPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 420 }}>
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 720 }}>
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
