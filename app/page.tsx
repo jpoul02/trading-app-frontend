@@ -350,8 +350,10 @@ function AlertsCard({ alerts, onNew, onDelete }: {
           Alertas de precio
           <InfoTooltip text="Configurá un precio objetivo y te avisamos cuando se alcance. Útil para no estar monitoreando el mercado todo el día." />
         </p>
-        <button
+        <motion.button
           onClick={onNew}
+          whileTap={{ scale: 0.94 }}
+          transition={{ duration: 0.12, ease: EASE }}
           style={{
             padding: "3px 10px", border: `1px solid ${GREEN}40`, background: `${GREEN}0a`,
             color: GREEN, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
@@ -359,7 +361,7 @@ function AlertsCard({ alerts, onNew, onDelete }: {
           }}
         >
           + NUEVO
-        </button>
+        </motion.button>
       </div>
 
       {alerts.length === 0 ? (
@@ -394,12 +396,14 @@ function AlertsCard({ alerts, onNew, onDelete }: {
                 {alert.triggered && (
                   <span style={{ fontSize: 8, color: GREEN, fontWeight: 700, letterSpacing: "0.1em" }}>ACTIVADA</span>
                 )}
-                <button
+                <motion.button
                   onClick={() => onDelete(alert.id)}
+                  whileTap={{ scale: 0.85 }}
+                  transition={{ duration: 0.12, ease: EASE }}
                   style={{ background: "transparent", border: "none", color: DIM, cursor: "pointer", fontSize: 16, padding: "0 2px", lineHeight: 1, fontFamily: "inherit" }}
                 >
                   ×
-                </button>
+                </motion.button>
               </div>
             </div>
           ))}
@@ -579,12 +583,14 @@ export default function DashboardPage() {
             <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>En vivo</span>
           </div>
 
-          <button
+          <motion.button
             onClick={() => fetchData()}
+            whileTap={{ scale: 0.96 }}
+            transition={{ duration: 0.12, ease: EASE }}
             style={{ padding: "7px 16px", border: `1px solid ${BORDER}`, background: CARD, color: TEXT2, fontSize: 12, fontWeight: 500, cursor: "pointer", borderRadius: 0, fontFamily: "inherit" }}
           >
             Actualizar
-          </button>
+          </motion.button>
         </div>
       </motion.div>
 
@@ -598,9 +604,14 @@ export default function DashboardPage() {
             <span style={{ color: RED, fontSize: 13, fontWeight: 500 }}>
               No se pudo conectar al servidor (puerto 8000)
             </span>
-            <button onClick={() => fetchData()} style={{ border: `1px solid ${RED}40`, color: RED, padding: "5px 14px", fontWeight: 600, background: "transparent", cursor: "pointer", fontSize: 12, fontFamily: "inherit", borderRadius: 0 }}>
+            <motion.button
+              onClick={() => fetchData()}
+              whileTap={{ scale: 0.96 }}
+              transition={{ duration: 0.12, ease: EASE }}
+              style={{ border: `1px solid ${RED}40`, color: RED, padding: "5px 14px", fontWeight: 600, background: "transparent", cursor: "pointer", fontSize: 12, fontFamily: "inherit", borderRadius: 0 }}
+            >
               Reintentar
-            </button>
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -880,10 +891,12 @@ export default function DashboardPage() {
             }}
           >
             🔔 ALERTA: {a.symbol} {a.condition === "above" ? "superó los" : "bajó de"} ${a.price.toLocaleString("en-US")}
-            <button
+            <motion.button
               onClick={() => setTriggeredAlerts(t => t.filter(x => x.id !== a.id))}
+              whileTap={{ scale: 0.85 }}
+              transition={{ duration: 0.12, ease: EASE }}
               style={{ background: "transparent", border: "none", color: "#eab308", cursor: "pointer", fontSize: 20, padding: 0, lineHeight: 1, fontFamily: "inherit" }}
-            >×</button>
+            >×</motion.button>
           </motion.div>
         ))}
       </AnimatePresence>
@@ -907,10 +920,12 @@ export default function DashboardPage() {
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, letterSpacing: "0.06em" }}>NUEVA ALERTA DE PRECIO</p>
-                <button
+                <motion.button
                   onClick={() => setShowAlertModal(false)}
+                  whileTap={{ scale: 0.85 }}
+                  transition={{ duration: 0.12, ease: EASE }}
                   style={{ background: "transparent", border: "none", color: MUTED, cursor: "pointer", fontSize: 20, padding: "0 2px", lineHeight: 1, fontFamily: "inherit" }}
-                >×</button>
+                >×</motion.button>
               </div>
 
               <div style={{ marginBottom: 14 }}>
@@ -949,15 +964,19 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                <button
+                <motion.button
                   onClick={() => setShowAlertModal(false)}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ duration: 0.12, ease: EASE }}
                   style={{ flex: 1, padding: "10px 0", border: `1px solid ${BORDER}`, background: "transparent", color: MUTED, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", borderRadius: 0 }}
                 >
                   Cancelar
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={handleCreateAlert}
                   disabled={!newAlertPrice || parseFloat(newAlertPrice) <= 0}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ duration: 0.12, ease: EASE }}
                   style={{
                     flex: 1, padding: "10px 0", border: `1px solid ${GREEN}50`,
                     background: `${GREEN}12`, color: GREEN, fontSize: 12, fontWeight: 700,
@@ -966,7 +985,7 @@ export default function DashboardPage() {
                   }}
                 >
                   Agregar alerta
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
