@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, CreditCard, TrendingUp } from "lucide-react";
+import { Bot, CreditCard, TrendingUp, FlaskConical } from "lucide-react";
 import { useMarketActivity, StockBar } from "../context/MarketActivityContext";
 
 const NAV: Array<{ href: string; label: string; icon?: React.ElementType }> = [
@@ -16,6 +16,7 @@ const NAV: Array<{ href: string; label: string; icon?: React.ElementType }> = [
   { href: "/mt5",          label: "MT5 Live"     },
   { href: "/bot",          label: "Bot Trading",  icon: Bot },
   { href: "/estrategias",  label: "Estrategias",  icon: TrendingUp },
+  { href: "/backtest",     label: "Backtest",     icon: FlaskConical },
   { href: "/platforms", label: "Plataformas" },
 ];
 
