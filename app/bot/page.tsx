@@ -12,6 +12,9 @@ interface BotStatus {
   disabled_reason: string | null;
   day_start_balance: number | null;
   account_start_balance: number | null;
+  current_balance: number | null;
+  current_equity: number | null;
+  current_profit: number | null;
   symbols: string[];
   timeframe: string;
 }
@@ -370,11 +373,27 @@ export default function BotPage() {
               {toggleLoading ? "…" : running ? "Detener bot" : "Iniciar bot"}
             </button>
           </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {[
+              { label: "Balance actual", value: `$${fmt(status.current_balance)}`, color: "var(--text-primary)" },
+              { label: "Equity actual", value: `$${fmt(status.current_equity)}`, color: "var(--text-primary)" },
+              {
+                label: "Profit flotante",
+                value: status.current_profit === null ? "—" : `${status.current_profit >= 0 ? "+" : ""}$${fmt(status.current_profit)}`,
+                color: (status.current_profit ?? 0) >= 0 ? "var(--green)" : "var(--red)",
+              },
+              { label: "Timeframe", value: status.timeframe, color: "var(--blue)" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>{label}</p>
+                <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
+              </div>
+            ))}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Balance inicio del día", value: `$${fmt(status.day_start_balance)}`, color: "var(--text-primary)" },
-              { label: "Balance inicial cuenta", value: `$${fmt(status.account_start_balance)}`, color: "var(--text-primary)" },
-              { label: "Timeframe", value: status.timeframe, color: "var(--blue)" },
+              { label: "Balance inicio del día", value: `$${fmt(status.day_start_balance)}`, color: "var(--text-muted)" },
+              { label: "Balance inicial cuenta", value: `$${fmt(status.account_start_balance)}`, color: "var(--text-muted)" },
               { label: "Símbolos", value: String(status.symbols.length), color: "var(--blue)" },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
