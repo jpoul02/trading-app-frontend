@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { usePricesWs } from "@/app/hooks/use-prices-ws";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,6 +214,7 @@ export default function BotPage() {
 
   const running = status?.running ?? false;
   const tripped = status?.kill_switch_tripped ?? false;
+  const livePrices = usePricesWs(status?.symbols ?? []);
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -316,6 +318,46 @@ export default function BotPage() {
                 <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Live prices ──────────────────────────────────────────────────── */}
+      {!loading && status && status.symbols.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+              Precios en vivo
+            </h2>
+            <span
+              style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: livePrices.ready ? "var(--green)" : "var(--text-muted)",
+                display: "inline-block",
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {status.symbols.map((sym) => {
+              const tick = livePrices.prices[sym];
+              return (
+                <div key={sym} className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs mb-2 font-bold" style={{ color: "var(--blue)" }}>{sym}</p>
+                  {tick ? (
+                    <>
+                      <p className="text-lg font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                        {tick.bid.toFixed(tick.digits)}
+                      </p>
+                      <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        ask {tick.ask.toFixed(tick.digits)} · spread {tick.spread}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>—</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
