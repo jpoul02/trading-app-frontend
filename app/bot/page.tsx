@@ -114,7 +114,8 @@ export default function BotPage() {
   const [showResetModal, setShowResetModal] = useState(false);
 
   // Config form (percentages shown as whole numbers, e.g. 1 = 1%)
-  const [symbolsInput, setSymbolsInput] = useState("");
+  const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
   const [timeframe, setTimeframe] = useState("M15");
   const [riskPct, setRiskPct] = useState(1);
   const [dailyLossPct, setDailyLossPct] = useState(3);
@@ -136,12 +137,23 @@ export default function BotPage() {
   async function fetchConfig() {
     try {
       const { data } = await api.get<BotConfig>("/api/bot/config");
-      setSymbolsInput(data.symbols.join(", "));
+      setSelectedSymbols(data.symbols);
       setTimeframe(data.timeframe);
       setRiskPct(Math.round(data.risk_pct * 1000) / 10);
       setDailyLossPct(Math.round(data.daily_loss_limit_pct * 1000) / 10);
       setMaxDrawdownPct(Math.round(data.max_drawdown_pct * 1000) / 10);
     } catch {}
+  }
+
+  async function fetchAvailableSymbols() {
+    try {
+      const { data } = await api.get<{ symbols: { name: string }[] }>("/api/mt5/symbols");
+      setAvailableSymbols(data.symbols.map((s) => s.name));
+    } catch {}
+  }
+
+  function toggleSymbol(sym: string) {
+    setSelectedSymbols((prev) => (prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]));
   }
 
   async function fetchTrades() {
@@ -155,6 +167,7 @@ export default function BotPage() {
     fetchStatus();
     fetchConfig();
     fetchTrades();
+    fetchAvailableSymbols();
     const interval = setInterval(() => {
       fetchStatus();
       fetchTrades();
@@ -184,7 +197,7 @@ export default function BotPage() {
     setConfigSaved(false);
     try {
       await api.put("/api/bot/config", {
-        symbols: symbolsInput.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean),
+        symbols: selectedSymbols,
         timeframe,
         risk_pct: riskPct / 100,
         daily_loss_limit_pct: dailyLossPct / 100,
@@ -313,18 +326,38 @@ export default function BotPage() {
           Configuración
         </h2>
         <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Símbolos (separados por coma)
-              </label>
-              <input
-                value={symbolsInput}
-                onChange={(e) => setSymbolsInput(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
+          <div className="mb-4">
+            <label className="text-xs block mb-2" style={{ color: "var(--text-muted)" }}>
+              Símbolos ({selectedSymbols.length} seleccionados)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {availableSymbols.length === 0 ? (
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  Cargando símbolos disponibles del broker…
+                </span>
+              ) : (
+                availableSymbols.map((sym) => {
+                  const active = selectedSymbols.includes(sym);
+                  return (
+                    <button
+                      key={sym}
+                      type="button"
+                      onClick={() => toggleSymbol(sym)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-opacity"
+                      style={
+                        active
+                          ? { background: "rgba(61,124,255,0.15)", border: "1px solid var(--blue)", color: "var(--blue)" }
+                          : { background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }
+                      }
+                    >
+                      {active ? "✓ " : ""}{sym}
+                    </button>
+                  );
+                })
+              )}
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe</label>
               <select
