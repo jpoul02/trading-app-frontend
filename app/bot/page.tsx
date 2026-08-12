@@ -345,7 +345,7 @@ export default function BotPage() {
           </div>
           <button
             onClick={() => setShowResetModal(true)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer shrink-0"
+            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer shrink-0 active:scale-[0.97] transition-transform duration-150"
             style={{ background: "var(--green)", color: "#0a1628", border: "none" }}
           >
             Reactivar
@@ -363,7 +363,7 @@ export default function BotPage() {
             <button
               onClick={toggleRunning}
               disabled={toggleLoading || tripped}
-              className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40 transition-opacity"
+              className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-[transform,opacity] duration-150"
               style={
                 running
                   ? { background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.4)", color: "var(--red)" }
@@ -611,9 +611,13 @@ export default function BotPage() {
                 </thead>
                 <tbody>
                   {trades.map((t, i) => (
-                    <tr key={t.id} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
-                      <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>{t.symbol}</td>
-                      <td className="px-4 py-3">
+                    <tr
+                      key={t.id}
+                      className="transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+                      style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
+                    >
+                      <td className="px-4 py-3.5 text-[15px] font-bold" style={{ color: "var(--blue)" }}>{t.symbol}</td>
+                      <td className="px-4 py-3.5">
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-full"
                           style={{
@@ -624,7 +628,7 @@ export default function BotPage() {
                           {t.mode === "mean_reversion" ? "Mean Rev" : "Trend"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-full"
                           style={{
@@ -635,11 +639,11 @@ export default function BotPage() {
                           {t.action.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-muted)" }}>{t.volume}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-primary)" }}>{t.price}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--red)" }}>{t.sl ?? "—"}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "var(--green)" }}>{t.tp ?? "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 tabular-nums" style={{ color: "var(--text-muted)" }}>{t.volume}</td>
+                      <td className="px-4 py-3.5 tabular-nums" style={{ color: "var(--text-primary)" }}>{t.price}</td>
+                      <td className="px-4 py-3.5 tabular-nums" style={{ color: "var(--red)" }}>{t.sl ?? "—"}</td>
+                      <td className="px-4 py-3.5 tabular-nums" style={{ color: "var(--green)" }}>{t.tp ?? "—"}</td>
+                      <td className="px-4 py-3.5">
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-full"
                           style={{
@@ -651,15 +655,19 @@ export default function BotPage() {
                         </span>
                       </td>
                       <td
-                        className="px-4 py-3 font-semibold tabular-nums"
+                        className="px-4 py-3.5 text-base font-bold tabular-nums"
                         style={{ color: t.profit === null ? "var(--text-muted)" : t.profit >= 0 ? "var(--green)" : "var(--red)" }}
                       >
                         {t.profit === null ? "—" : `${t.profit >= 0 ? "+" : ""}${fmt(t.profit)}`}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                      <td className="px-4 py-3.5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                         {t.opened_at ? new Date(t.opened_at).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
                       </td>
-                      <td className="px-4 py-3 max-w-xs" style={{ color: "var(--text-muted)" }}>
+                      <td
+                        className="px-4 py-3.5 max-w-[220px] truncate"
+                        style={{ color: "var(--text-muted)" }}
+                        title={t.signal_reason ?? undefined}
+                      >
                         {t.signal_reason ?? "—"}
                       </td>
                     </tr>
@@ -678,7 +686,7 @@ export default function BotPage() {
               <button
                 onClick={() => setTradesPage((p) => Math.max(0, p - 1))}
                 disabled={tradesPage === 0}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-transform duration-150"
                 style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
               >
                 ← Anterior
@@ -686,7 +694,7 @@ export default function BotPage() {
               <button
                 onClick={() => setTradesPage((p) => p + 1)}
                 disabled={(tradesPage + 1) * TRADES_PAGE_SIZE >= tradesTotal}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-transform duration-150"
                 style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
               >
                 Siguiente →
