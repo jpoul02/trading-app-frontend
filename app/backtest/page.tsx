@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
 interface BacktestTrade {
@@ -13,6 +13,21 @@ interface BacktestTrade {
   profit: number;
   opened_at: number;
   closed_at: number;
+}
+
+interface HistoryRun {
+  id: number;
+  run_at: string;
+  symbol: string;
+  timeframe: string;
+  strategy: string;
+  date_from: string;
+  date_to: string;
+  total_trades: number;
+  win_rate_pct: number;
+  total_profit: number;
+  max_drawdown_pct: number;
+  profit_factor: number | null;
 }
 
 interface BacktestResult {
@@ -164,6 +179,18 @@ export default function BacktestPage() {
   const [strategy, setStrategy] = useState<"trend" | "mean_reversion" | "both">("both");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | { trend: BacktestResult; mean_reversion: BacktestResult } | null>(null);
+  const [history, setHistory] = useState<HistoryRun[]>([]);
+
+  async function fetchHistory() {
+    try {
+      const { data } = await api.get<HistoryRun[]>("/api/backtest/history");
+      setHistory(data);
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   async function runBacktest() {
     setLoading(true);
@@ -173,11 +200,19 @@ export default function BacktestPage() {
         symbol, timeframe, date_from: dateFrom, date_to: dateTo, strategy,
       });
       setResult(data);
+      fetchHistory();
     } catch {
       setResult({ error: "Error de red al correr el backtest" } as BacktestResult);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadHistoryRun(id: number) {
+    try {
+      const { data } = await api.get(`/api/backtest/history/${id}`);
+      if (data.full_result) setResult(data.full_result);
+    } catch {}
   }
 
   const isComparison = result && "trend" in result;
@@ -243,6 +278,52 @@ export default function BacktestPage() {
           <div>
             <p className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Mean Reversion</p>
             <ResultPanel result={(result as { mean_reversion: BacktestResult }).mean_reversion} />
+          </div>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-8">
+          <p className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Historial de backtests</p>
+          <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <div className="overflow-x-auto" style={{ maxHeight: 320, overflowY: "auto" }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    {["Símbolo", "Modo", "Rango", "Trades", "Win rate", "Profit", "PF", ""].map((h) => (
+                      <th key={h} className="text-left px-3 py-2 whitespace-nowrap" style={{ color: "var(--text-muted)", position: "sticky", top: 0, background: "var(--bg-card)" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((h, i) => (
+                    <tr key={h.id} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                      <td className="px-3 py-2 font-bold" style={{ color: "var(--blue)" }}>{h.symbol} · {h.timeframe}</td>
+                      <td className="px-3 py-2" style={{ color: "var(--text-muted)" }}>{h.strategy === "mean_reversion" ? "Mean Rev" : "Trend"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{h.date_from} → {h.date_to}</td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>{h.total_trades}</td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>{h.win_rate_pct}%</td>
+                      <td className="px-3 py-2 font-semibold tabular-nums" style={{ color: h.total_profit >= 0 ? "var(--green)" : "var(--red)" }}>
+                        {h.total_profit >= 0 ? "+" : ""}{fmt(h.total_profit)}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: h.profit_factor !== null && h.profit_factor >= 1 ? "var(--green)" : "var(--red)" }}>
+                        {h.profit_factor === null ? "—" : h.profit_factor.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => loadHistoryRun(h.id)}
+                          className="text-xs font-semibold cursor-pointer active:scale-[0.97] transition-transform duration-150"
+                          style={{ background: "transparent", border: "none", color: "var(--blue)" }}
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
