@@ -38,6 +38,7 @@ interface BotTrade {
   profit: number | null;
   opened_at: string | null;
   closed_at: string | null;
+  mode: string | null;
 }
 
 const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
@@ -568,7 +569,7 @@ export default function BotPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Símbolo", "Acción", "Volumen", "Precio", "SL", "TP", "Estado", "Profit", "Abierta", "Razón"].map((h) => (
+                    {["Símbolo", "Modo", "Acción", "Volumen", "Precio", "SL", "TP", "Estado", "Profit", "Abierta", "Razón"].map((h) => (
                       <th key={h} className="text-left px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                         {h}
                       </th>
@@ -579,6 +580,17 @@ export default function BotPage() {
                   {trades.map((t, i) => (
                     <tr key={t.id} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="px-4 py-3 font-bold" style={{ color: "var(--blue)" }}>{t.symbol}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: t.mode === "mean_reversion" ? "rgba(61,124,255,0.12)" : "var(--bg-secondary)",
+                            color: t.mode === "mean_reversion" ? "var(--blue)" : "var(--text-muted)",
+                          }}
+                        >
+                          {t.mode === "mean_reversion" ? "Mean Rev" : "Trend"}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-full"
