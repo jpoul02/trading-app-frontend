@@ -505,7 +505,7 @@ export default function BotPage() {
                       key={sym}
                       type="button"
                       onClick={() => toggleSymbol(sym)}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-opacity"
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer active:scale-[0.97] transition-[transform,opacity] duration-150"
                       style={
                         active
                           ? { background: "rgba(61,124,255,0.15)", border: "1px solid var(--blue)", color: "var(--blue)" }
@@ -569,7 +569,7 @@ export default function BotPage() {
             <button
               onClick={saveConfig}
               disabled={configLoading}
-              className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40"
+              className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-transform duration-150"
               style={{ background: "var(--blue)", color: "#fff", border: "none" }}
             >
               {configLoading ? "Guardando…" : "Guardar configuración"}
