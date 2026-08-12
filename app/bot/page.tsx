@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { usePricesWs } from "@/app/hooks/use-prices-ws";
+import { useAccountWs } from "@/app/hooks/use-account-ws";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -282,6 +283,7 @@ export default function BotPage() {
   const running = status?.running ?? false;
   const tripped = status?.kill_switch_tripped ?? false;
   const livePrices = usePricesWs(status?.symbols ?? []);
+  const acctWs = useAccountWs();
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -401,6 +403,90 @@ export default function BotPage() {
                 <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Open positions (live SL/TP progress) ───────────────────────────── */}
+      {acctWs.positions.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+              Posiciones abiertas
+            </h2>
+            <span
+              style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: acctWs.ready ? "var(--green)" : "var(--text-muted)",
+                display: "inline-block",
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-3">
+            {acctWs.positions.map((p) => {
+              const priceDec = p.current_price < 10 ? 5 : 3;
+              const fmtPrice = (n: number) => n.toFixed(priceDec);
+              const range = p.tp - p.sl;
+              const rawPct = range !== 0 ? (p.current_price - p.sl) / range : 0.5;
+              const pct = Math.max(0, Math.min(1, rawPct));
+              const entryPct = range !== 0 ? Math.max(0, Math.min(1, (p.open_price - p.sl) / range)) : 0.5;
+              const distToSL = Math.abs(p.current_price - p.sl);
+              const distToTP = Math.abs(p.current_price - p.tp);
+              const profitColor = p.profit >= 0 ? "var(--green)" : "var(--red)";
+
+              return (
+                <div key={p.ticket} className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-bold" style={{ color: "var(--blue)" }}>{p.symbol}</span>
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: p.type === "BUY" ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)",
+                          color: p.type === "BUY" ? "var(--green)" : "var(--red)",
+                        }}
+                      >
+                        {p.type}
+                      </span>
+                      <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{p.volume} lotes</span>
+                    </div>
+                    <span className="text-base font-bold tabular-nums" style={{ color: profitColor }}>
+                      {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
+                    </span>
+                  </div>
+
+                  {/* SL ↔ TP progress bar */}
+                  <div className="relative mb-2" style={{ height: 8 }}>
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{ background: "linear-gradient(90deg, rgba(255,71,87,0.25), rgba(0,212,170,0.25))" }}
+                    />
+                    {/* Entry marker */}
+                    <div
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${entryPct * 100}%`, top: -3, width: 2, height: 14,
+                        background: "var(--text-muted)", transform: "translateX(-1px)",
+                      }}
+                    />
+                    {/* Current price marker */}
+                    <div
+                      className="absolute rounded-full transition-[left] duration-500 ease-out"
+                      style={{
+                        left: `${pct * 100}%`, top: -4, width: 16, height: 16,
+                        background: profitColor, transform: "translateX(-8px)",
+                        border: "2px solid var(--bg-card)", boxShadow: `0 0 6px ${profitColor}`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span>SL {fmtPrice(p.sl)} <span className="tabular-nums">({fmtPrice(distToSL)})</span></span>
+                    <span>Entrada {fmtPrice(p.open_price)}</span>
+                    <span>TP {fmtPrice(p.tp)} <span className="tabular-nums">({fmtPrice(distToTP)})</span></span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
