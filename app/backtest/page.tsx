@@ -48,8 +48,7 @@ interface BacktestResult {
   trades: BacktestTrade[];
 }
 
-const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF"];
-const TIMEFRAMES = ["M15", "M30", "H1", "H4"];
+const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
 const TRADES_PAGE_SIZE = 15;
 
 function fmt(n: number) {
@@ -173,10 +172,11 @@ function ResultPanel({ result }: Readonly<{ result: BacktestResult }>) {
 
 export default function BacktestPage() {
   const [symbol, setSymbol] = useState("EURUSD");
+  const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
   const [timeframe, setTimeframe] = useState("M15");
   const [dateFrom, setDateFrom] = useState("2025-06-01");
   const [dateTo, setDateTo] = useState("2026-08-01");
-  const [strategy, setStrategy] = useState<"trend" | "mean_reversion" | "both">("both");
+  const [strategy, setStrategy] = useState<"trend" | "mean_reversion" | "fast" | "both">("both");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | { trend: BacktestResult; mean_reversion: BacktestResult } | null>(null);
   const [history, setHistory] = useState<HistoryRun[]>([]);
@@ -188,8 +188,16 @@ export default function BacktestPage() {
     } catch {}
   }
 
+  async function fetchAvailableSymbols() {
+    try {
+      const { data } = await api.get<{ symbols: { name: string }[] }>("/api/mt5/symbols");
+      setAvailableSymbols(data.symbols.map((s) => s.name));
+    } catch {}
+  }
+
   useEffect(() => {
     fetchHistory();
+    fetchAvailableSymbols();
   }, []);
 
   async function runBacktest() {
@@ -231,7 +239,9 @@ export default function BacktestPage() {
           <div>
             <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Símbolo</label>
             <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
-              {SYMBOLS.map((s) => <option key={s} value={s}>{s}</option>)}
+              {availableSymbols.length === 0
+                ? <option value={symbol}>{symbol}</option>
+                : availableSymbols.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
@@ -243,9 +253,10 @@ export default function BacktestPage() {
           <div>
             <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Estrategia</label>
             <select value={strategy} onChange={(e) => setStrategy(e.target.value as typeof strategy)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
-              <option value="both">Comparar ambas</option>
+              <option value="both">Comparar Trend y Mean Reversion</option>
               <option value="trend">Trend</option>
               <option value="mean_reversion">Mean Reversion</option>
+              <option value="fast">Fast (scalping)</option>
             </select>
           </div>
           <div>
