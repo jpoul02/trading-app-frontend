@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { usePricesWs } from "@/app/hooks/use-prices-ws";
-import { useAccountWs } from "@/app/hooks/use-account-ws";
+import { useAccountWs, WsPosition } from "@/app/hooks/use-account-ws";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,10 @@ interface BotConfig {
   trend_enabled: boolean;
   mean_reversion_enabled: boolean;
   fast_enabled: boolean;
+  max_loss_pct: number;
+  trailing_trigger_pct: number;
+  trailing_distance_atr: number;
+  trading_capital: number | null;
 }
 
 interface GateFailure {
@@ -47,6 +51,7 @@ interface BotTrade {
   action: string;
   volume: number;
   price: number;
+  close_price: number | null;
   sl: number | null;
   tp: number | null;
   signal_reason: string | null;
@@ -174,6 +179,113 @@ function ResetKillSwitchModal({ onConfirm, onCancel }: Readonly<{ onConfirm: () 
   );
 }
 
+const MODE_LABELS: Record<string, string> = {
+  trend: "Trend", mean_reversion: "Mean Rev", fast: "Fast", manual: "Manual",
+};
+
+function PositionsDetailModal({
+  positions, config, onClose,
+}: Readonly<{ positions: WsPosition[]; config: BotConfig | null; onClose: () => void }>) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
+        zIndex: 9998, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+      }}
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16,
+          padding: "1.5rem", maxWidth: 720, width: "100%", maxHeight: "85vh", overflowY: "auto",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.1rem" }}>
+            Posiciones abiertas y configuración activa
+          </h3>
+          <button
+            onClick={onClose}
+            className="cursor-pointer"
+            style={{ color: "var(--text-muted)", background: "none", border: "none", fontSize: 20, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+
+        {config && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5 p-3 rounded-lg text-xs" style={{ background: "var(--bg-secondary)" }}>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Capital de trading</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                {config.trading_capital ? `$${config.trading_capital}` : "Balance real"}
+              </p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Riesgo por operación</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{(config.risk_pct * 100).toFixed(2)}%</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Timeframe Trend/MR</p>
+              <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{config.timeframe}</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Timeframe Fast</p>
+              <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{config.fast_timeframe}</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Cierre forzado (hard stop)</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{(config.max_loss_pct * 100).toFixed(2)}%</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Trailing activa a</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{(config.trailing_trigger_pct * 100).toFixed(0)}% hacia TP</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Distancia trailing</p>
+              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{config.trailing_distance_atr}x ATR</p>
+            </div>
+            <div>
+              <p style={{ color: "var(--text-muted)" }}>Modos activos</p>
+              <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                {[config.trend_enabled && "Trend", config.mean_reversion_enabled && "Mean Rev", config.fast_enabled && "Fast"].filter(Boolean).join(", ") || "Ninguno"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {positions.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Sin posiciones abiertas.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {positions.map((p) => (
+              <div key={p.ticket} className="p-3 rounded-lg text-sm" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold" style={{ color: "var(--blue)" }}>{p.symbol}</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(61,124,255,0.12)", color: "var(--blue)" }}>
+                    {MODE_LABELS[p.mode] ?? p.mode}
+                  </span>
+                  <span className="text-xs" style={{ color: p.type === "BUY" ? "var(--green)" : "var(--red)" }}>{p.type}</span>
+                  <span className="text-xs ml-auto tabular-nums" style={{ color: p.profit >= 0 ? "var(--green)" : "var(--red)" }}>
+                    {p.profit >= 0 ? "+" : ""}{p.profit.toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  Ticket {p.ticket} · {p.volume} lotes · Entrada {p.open_price} · SL {p.sl} · TP {p.tp} · Margen ${p.margin ?? "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 const TRADES_PAGE_SIZE = 10;
@@ -204,6 +316,14 @@ export default function BotPage() {
   const [configSaved, setConfigSaved] = useState(false);
   const [gateFailure, setGateFailure] = useState<{ mode: string; failures: GateFailure[] } | null>(null);
   const [openItem, setOpenItem] = useState<string | null>(null);
+  const [maxLossPct, setMaxLossPct] = useState(1);
+  const [trailingTriggerPct, setTrailingTriggerPct] = useState(30);
+  const [trailingDistanceAtr, setTrailingDistanceAtr] = useState(1);
+  const [closingTicket, setClosingTicket] = useState<number | null>(null);
+  const [tradingCapital, setTradingCapital] = useState(0);
+  const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null);
+  const [showPositionsDetailModal, setShowPositionsDetailModal] = useState(false);
+  const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
 
   async function fetchStatus() {
     try {
@@ -219,6 +339,7 @@ export default function BotPage() {
   async function fetchConfig() {
     try {
       const { data } = await api.get<BotConfig>("/api/bot/config");
+      setBotConfig(data);
       setTrendSymbols(data.trend_symbols);
       setMeanReversionSymbols(data.mean_reversion_symbols);
       setFastSymbols(data.fast_symbols);
@@ -230,6 +351,10 @@ export default function BotPage() {
       setTrendEnabled(data.trend_enabled);
       setMeanReversionEnabled(data.mean_reversion_enabled);
       setFastEnabled(data.fast_enabled);
+      setMaxLossPct(Math.round(data.max_loss_pct * 1000) / 10);
+      setTrailingTriggerPct(Math.round(data.trailing_trigger_pct * 1000) / 10);
+      setTradingCapital(data.trading_capital ?? 0);
+      setTrailingDistanceAtr(data.trailing_distance_atr);
     } catch {}
   }
 
@@ -291,12 +416,21 @@ export default function BotPage() {
     await fetchStatus();
   }
 
+  async function closePosition(ticket: number) {
+    setClosingTicket(ticket);
+    try {
+      await api.post(`/api/mt5/close/${ticket}`);
+    } finally {
+      setClosingTicket(null);
+    }
+  }
+
   async function saveConfig() {
     setConfigLoading(true);
     setConfigSaved(false);
     setGateFailure(null);
     try {
-      await api.put("/api/bot/config", {
+      const { data } = await api.put<BotConfig>("/api/bot/config", {
         trend_symbols: trendSymbols,
         mean_reversion_symbols: meanReversionSymbols,
         fast_symbols: fastSymbols,
@@ -308,14 +442,19 @@ export default function BotPage() {
         trend_enabled: trendEnabled,
         mean_reversion_enabled: meanReversionEnabled,
         fast_enabled: fastEnabled,
+        max_loss_pct: maxLossPct / 100,
+        trailing_trigger_pct: trailingTriggerPct / 100,
+        trading_capital: tradingCapital,
+        trailing_distance_atr: trailingDistanceAtr,
       });
+      setBotConfig(data);
       setConfigSaved(true);
       fetchStatus();
       setTimeout(() => setConfigSaved(false), 3000);
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: { mode: string; failures: GateFailure[] } } } })?.response?.data?.detail;
-      if (detail) {
-        setGateFailure(detail);
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      if (detail && typeof detail === "object" && "failures" in detail && Array.isArray((detail as { failures: unknown }).failures)) {
+        setGateFailure(detail as { mode: string; failures: GateFailure[] });
         await fetchConfig(); // revert the enabled toggle to what's actually saved
       }
     } finally {
@@ -332,6 +471,13 @@ export default function BotPage() {
     <div className="max-w-5xl mx-auto">
       {showResetModal && (
         <ResetKillSwitchModal onConfirm={confirmResetKillSwitch} onCancel={() => setShowResetModal(false)} />
+      )}
+      {showPositionsDetailModal && (
+        <PositionsDetailModal
+          positions={acctWs.positions}
+          config={botConfig}
+          onClose={() => setShowPositionsDetailModal(false)}
+        />
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -457,6 +603,15 @@ export default function BotPage() {
             <h2 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
               Posiciones abiertas
             </h2>
+            <button
+              type="button"
+              onClick={() => setShowPositionsDetailModal(true)}
+              className="w-5 h-5 rounded-full text-xs font-bold cursor-pointer flex items-center justify-center"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+              title="Ver detalle y configuración activa"
+            >
+              i
+            </button>
             <span
               style={{
                 width: 6, height: 6, borderRadius: "50%",
@@ -476,6 +631,11 @@ export default function BotPage() {
               const distToSL = Math.abs(p.current_price - p.sl);
               const distToTP = Math.abs(p.current_price - p.tp);
               const profitColor = p.profit >= 0 ? "var(--green)" : "var(--red)";
+              const trailingActive = p.sl_original != null && fmtPrice(p.sl) !== fmtPrice(p.sl_original);
+              const tpDistanceFromEntry = p.type === "BUY" ? p.tp - p.open_price : p.open_price - p.tp;
+              const progressToTpPct = tpDistanceFromEntry !== 0
+                ? Math.max(0, ((p.type === "BUY" ? p.current_price - p.open_price : p.open_price - p.current_price) / tpDistanceFromEntry) * 100)
+                : 0;
 
               return (
                 <div key={p.ticket} className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
@@ -492,10 +652,29 @@ export default function BotPage() {
                         {p.type}
                       </span>
                       <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{p.volume} lotes</span>
+                      {trailingActive && (
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(61,124,255,0.15)", color: "var(--blue)" }}
+                          title={`SL original ${fmtPrice(p.sl_original as number)} → ${fmtPrice(p.sl)}`}
+                        >
+                          SL ajustado ✓
+                        </span>
+                      )}
                     </div>
-                    <span className="text-base font-bold tabular-nums" style={{ color: profitColor }}>
-                      {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-bold tabular-nums" style={{ color: profitColor }}>
+                        {p.profit >= 0 ? "+" : ""}{fmt(p.profit)}
+                      </span>
+                      <button
+                        onClick={() => closePosition(p.ticket)}
+                        disabled={closingTicket === p.ticket}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-[transform,opacity] duration-150"
+                        style={{ background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.4)", color: "var(--red)" }}
+                      >
+                        {closingTicket === p.ticket ? "Cerrando…" : "Cerrar"}
+                      </button>
+                    </div>
                   </div>
 
                   {/* SL ↔ TP progress bar */}
@@ -526,6 +705,19 @@ export default function BotPage() {
                     <span>SL {fmtPrice(p.sl)} <span className="tabular-nums">({fmtPrice(distToSL)})</span></span>
                     <span>Entrada {fmtPrice(p.open_price)}</span>
                     <span>TP {fmtPrice(p.tp)} <span className="tabular-nums">({fmtPrice(distToTP)})</span></span>
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    Entraste a {fmtPrice(p.open_price)} · <span className="tabular-nums">{Math.min(progressToTpPct, 999).toFixed(0)}%</span> del camino hacia tu Take Profit
+                    {p.margin != null && (
+                      <>
+                        {" · Invertido $"}<span className="tabular-nums">{p.margin.toFixed(2)}</span>
+                        {" · "}
+                        <span className="tabular-nums" style={{ color: profitColor }}>
+                          {p.margin > 0 ? `${p.profit >= 0 ? "+" : ""}${((p.profit / p.margin) * 100).toFixed(1)}%` : "—"}
+                        </span>
+                        {" retorno"}
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -680,6 +872,21 @@ export default function BotPage() {
               />
             </div>
             <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                Capital de trading ($, opcional)
+              </label>
+              <input
+                type="number" step="1" min="0" value={tradingCapital}
+                placeholder="0 = usa el balance real de la cuenta"
+                onChange={(e) => setTradingCapital(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              />
+              <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                El % de riesgo se calcula sobre este número, no sobre el balance real de MT5. Ej: $20 y 1% riesgo → arriesga $0.20 por operación.
+              </p>
+            </div>
+            <div>
               <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Límite de pérdida diaria (%)</label>
               <input
                 type="number" step="0.1" min="0" value={dailyLossPct}
@@ -697,18 +904,39 @@ export default function BotPage() {
                 style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveConfig}
-              disabled={configLoading}
-              className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-transform duration-150"
-              style={{ background: "var(--blue)", color: "#fff", border: "none" }}
-            >
-              {configLoading ? "Guardando…" : "Guardar configuración"}
-            </button>
-            {configSaved && <span className="text-sm" style={{ color: "var(--green)" }}>✓ Guardado</span>}
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                Cierre forzado si cae (% del precio de compra)
+              </label>
+              <input
+                type="number" step="0.1" min="0" value={maxLossPct}
+                onChange={(e) => setMaxLossPct(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              />
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                Activar trailing SL al recorrer (% del camino hacia el TP)
+              </label>
+              <input
+                type="number" step="1" min="0" max="100" value={trailingTriggerPct}
+                onChange={(e) => setTrailingTriggerPct(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              />
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                Distancia del SL al precio (x ATR) mientras sigue ganancia
+              </label>
+              <input
+                type="number" step="0.1" min="0" value={trailingDistanceAtr}
+                onChange={(e) => setTrailingDistanceAtr(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              />
+            </div>
           </div>
         </div>
 
@@ -788,6 +1016,18 @@ export default function BotPage() {
             {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
           </select>
         </div>
+
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            onClick={saveConfig}
+            disabled={configLoading}
+            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-40 active:scale-[0.97] transition-transform duration-150"
+            style={{ background: "var(--blue)", color: "#fff", border: "none" }}
+          >
+            {configLoading ? "Guardando…" : "Guardar configuración"}
+          </button>
+          {configSaved && <span className="text-sm" style={{ color: "var(--green)" }}>✓ Guardado</span>}
+        </div>
       </section>
 
       {/* ── Trades ───────────────────────────────────────────────────────── */}
@@ -821,10 +1061,11 @@ export default function BotPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map((t, i) => (
+                  {trades.flatMap((t, i) => { const rows = [
                     <tr
                       key={t.id}
-                      className="transition-colors duration-150 hover:bg-[var(--bg-secondary)]"
+                      onClick={() => setExpandedTradeId(expandedTradeId === t.id ? null : t.id)}
+                      className="transition-colors duration-150 hover:bg-[var(--bg-secondary)] cursor-pointer"
                       style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}
                     >
                       <td className="px-4 py-3.5 text-[15px] font-bold" style={{ color: "var(--blue)" }}>{t.symbol}</td>
@@ -832,11 +1073,11 @@ export default function BotPage() {
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-full"
                           style={{
-                            background: t.mode === "mean_reversion" ? "rgba(61,124,255,0.12)" : "var(--bg-secondary)",
-                            color: t.mode === "mean_reversion" ? "var(--blue)" : "var(--text-muted)",
+                            background: t.mode === "mean_reversion" ? "rgba(61,124,255,0.12)" : t.mode === "fast" ? "rgba(0,212,170,0.12)" : "var(--bg-secondary)",
+                            color: t.mode === "mean_reversion" ? "var(--blue)" : t.mode === "fast" ? "var(--green)" : "var(--text-muted)",
                           }}
                         >
-                          {t.mode === "mean_reversion" ? "Mean Rev" : "Trend"}
+                          {t.mode === "mean_reversion" ? "Mean Rev" : t.mode === "fast" ? "Fast" : "Trend"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -881,8 +1122,44 @@ export default function BotPage() {
                       >
                         {t.signal_reason ?? "—"}
                       </td>
-                    </tr>
-                  ))}
+                    </tr>,
+                  ];
+                  if (expandedTradeId === t.id) {
+                    rows.push(
+                      <tr key={`${t.id}-detail`} style={{ background: "var(--bg-secondary)" }}>
+                        <td colSpan={10} className="px-4 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Precio {t.action === "buy" ? "de compra" : "de venta"}</p>
+                              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{t.price}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Precio de cierre</p>
+                              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                                {t.close_price != null ? t.close_price : t.status === "closed" ? "No registrado (cerrada antes de esta función)" : "— (sigue abierta)"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Cerrada</p>
+                              <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                                {t.closed_at ? new Date(t.closed_at).toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Ticket MT5</p>
+                              <p className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{t.ticket ?? "—"}</p>
+                            </div>
+                            <div className="col-span-2 md:col-span-4">
+                              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Razón de la señal</p>
+                              <p style={{ color: "var(--text-primary)" }}>{t.signal_reason ?? "—"}</p>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return rows;
+                  })}
                 </tbody>
               </table>
             </div>

@@ -6,12 +6,15 @@ export interface WsPosition {
   ticket: number;
   symbol: string;
   type: "BUY" | "SELL";
+  mode: "trend" | "mean_reversion" | "fast" | "manual";
   volume: number;
   open_price: number;
   current_price: number;
   sl: number;
+  sl_original: number | null;
   tp: number;
   profit: number;
+  margin: number | null;
   swap: number;
   open_time: string;
   comment: string;
