@@ -21,11 +21,23 @@ interface BotStatus {
 }
 
 interface BotConfig {
-  symbols: string[];
+  trend_symbols: string[];
+  mean_reversion_symbols: string[];
+  fast_symbols: string[];
   timeframe: string;
+  fast_timeframe: string;
   risk_pct: number;
   daily_loss_limit_pct: number;
   max_drawdown_pct: number;
+  trend_enabled: boolean;
+  mean_reversion_enabled: boolean;
+  fast_enabled: boolean;
+}
+
+interface GateFailure {
+  symbol: string | null;
+  profit_factor: number | null;
+  error: string | null;
 }
 
 interface BotTrade {
@@ -177,13 +189,20 @@ export default function BotPage() {
 
   // Config form (percentages shown as whole numbers, e.g. 1 = 1%)
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
-  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+  const [trendSymbols, setTrendSymbols] = useState<string[]>([]);
+  const [meanReversionSymbols, setMeanReversionSymbols] = useState<string[]>([]);
+  const [fastSymbols, setFastSymbols] = useState<string[]>([]);
   const [timeframe, setTimeframe] = useState("M15");
+  const [fastTimeframe, setFastTimeframe] = useState("M5");
   const [riskPct, setRiskPct] = useState(1);
   const [dailyLossPct, setDailyLossPct] = useState(3);
   const [maxDrawdownPct, setMaxDrawdownPct] = useState(10);
+  const [trendEnabled, setTrendEnabled] = useState(true);
+  const [meanReversionEnabled, setMeanReversionEnabled] = useState(true);
+  const [fastEnabled, setFastEnabled] = useState(false);
   const [configLoading, setConfigLoading] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
+  const [gateFailure, setGateFailure] = useState<{ mode: string; failures: GateFailure[] } | null>(null);
   const [openItem, setOpenItem] = useState<string | null>(null);
 
   async function fetchStatus() {
@@ -200,11 +219,17 @@ export default function BotPage() {
   async function fetchConfig() {
     try {
       const { data } = await api.get<BotConfig>("/api/bot/config");
-      setSelectedSymbols(data.symbols);
+      setTrendSymbols(data.trend_symbols);
+      setMeanReversionSymbols(data.mean_reversion_symbols);
+      setFastSymbols(data.fast_symbols);
       setTimeframe(data.timeframe);
+      setFastTimeframe(data.fast_timeframe);
       setRiskPct(Math.round(data.risk_pct * 1000) / 10);
       setDailyLossPct(Math.round(data.daily_loss_limit_pct * 1000) / 10);
       setMaxDrawdownPct(Math.round(data.max_drawdown_pct * 1000) / 10);
+      setTrendEnabled(data.trend_enabled);
+      setMeanReversionEnabled(data.mean_reversion_enabled);
+      setFastEnabled(data.fast_enabled);
     } catch {}
   }
 
@@ -215,8 +240,13 @@ export default function BotPage() {
     } catch {}
   }
 
-  function toggleSymbol(sym: string) {
-    setSelectedSymbols((prev) => (prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]));
+  function toggleSymbolIn(setter: (updater: (prev: string[]) => string[]) => void, sym: string) {
+    setter((prev) => (prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]));
+  }
+
+  function applyFastPreset() {
+    setFastSymbols(["EURUSD", "GBPUSD", "USDJPY", "USDCHF"]);
+    setFastTimeframe("M5");
   }
 
   async function fetchTrades(page: number) {
@@ -264,17 +294,30 @@ export default function BotPage() {
   async function saveConfig() {
     setConfigLoading(true);
     setConfigSaved(false);
+    setGateFailure(null);
     try {
       await api.put("/api/bot/config", {
-        symbols: selectedSymbols,
+        trend_symbols: trendSymbols,
+        mean_reversion_symbols: meanReversionSymbols,
+        fast_symbols: fastSymbols,
         timeframe,
+        fast_timeframe: fastTimeframe,
         risk_pct: riskPct / 100,
         daily_loss_limit_pct: dailyLossPct / 100,
         max_drawdown_pct: maxDrawdownPct / 100,
+        trend_enabled: trendEnabled,
+        mean_reversion_enabled: meanReversionEnabled,
+        fast_enabled: fastEnabled,
       });
       setConfigSaved(true);
       fetchStatus();
       setTimeout(() => setConfigSaved(false), 3000);
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: { mode: string; failures: GateFailure[] } } } })?.response?.data?.detail;
+      if (detail) {
+        setGateFailure(detail);
+        await fetchConfig(); // revert the enabled toggle to what's actually saved
+      }
     } finally {
       setConfigLoading(false);
     }
@@ -573,41 +616,51 @@ export default function BotPage() {
         <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           Configuración
         </h2>
-        <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-          <div className="mb-4">
-            <label className="text-xs block mb-2" style={{ color: "var(--text-muted)" }}>
-              Símbolos ({selectedSymbols.length} seleccionados)
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableSymbols.length === 0 ? (
-                <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Cargando símbolos disponibles del broker…
-                </span>
-              ) : (
-                availableSymbols.map((sym) => {
-                  const active = selectedSymbols.includes(sym);
-                  return (
-                    <button
-                      key={sym}
-                      type="button"
-                      onClick={() => toggleSymbol(sym)}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer active:scale-[0.97] transition-[transform,opacity] duration-150"
-                      style={
-                        active
-                          ? { background: "rgba(61,124,255,0.15)", border: "1px solid var(--blue)", color: "var(--blue)" }
-                          : { background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }
-                      }
-                    >
-                      {active ? "✓ " : ""}{sym}
-                    </button>
-                  );
-                })
-              )}
+        <div className="rounded-xl p-5 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          {([
+            { label: "Trend", symbols: trendSymbols, setter: setTrendSymbols, enabled: trendEnabled, setEnabled: setTrendEnabled },
+            { label: "Mean Reversion", symbols: meanReversionSymbols, setter: setMeanReversionSymbols, enabled: meanReversionEnabled, setEnabled: setMeanReversionEnabled },
+          ] as const).map((mode) => (
+            <div key={mode.label} className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {mode.label} — símbolos ({mode.symbols.length} seleccionados)
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
+                  <input type="checkbox" checked={mode.enabled} onChange={(e) => mode.setEnabled(e.target.checked)} />
+                  Activo
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {availableSymbols.length === 0 ? (
+                  <span className="text-sm" style={{ color: "var(--text-muted)" }}>Cargando símbolos disponibles del broker…</span>
+                ) : (
+                  availableSymbols.map((sym) => {
+                    const active = mode.symbols.includes(sym);
+                    return (
+                      <button
+                        key={sym}
+                        type="button"
+                        onClick={() => toggleSymbolIn(mode.setter, sym)}
+                        className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer active:scale-[0.97] transition-[transform,opacity] duration-150"
+                        style={
+                          active
+                            ? { background: "rgba(61,124,255,0.15)", border: "1px solid var(--blue)", color: "var(--blue)" }
+                            : { background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }
+                        }
+                      >
+                        {active ? "✓ " : ""}{sym}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
+          ))}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe</label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Trend / Mean Reversion)</label>
               <select
                 value={timeframe}
                 onChange={(e) => setTimeframe(e.target.value)}
@@ -618,9 +671,7 @@ export default function BotPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Riesgo por operación (%)
-              </label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Riesgo por operación (%)</label>
               <input
                 type="number" step="0.1" min="0" value={riskPct}
                 onChange={(e) => setRiskPct(parseFloat(e.target.value) || 0)}
@@ -629,9 +680,7 @@ export default function BotPage() {
               />
             </div>
             <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Límite de pérdida diaria (%)
-              </label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Límite de pérdida diaria (%)</label>
               <input
                 type="number" step="0.1" min="0" value={dailyLossPct}
                 onChange={(e) => setDailyLossPct(parseFloat(e.target.value) || 0)}
@@ -640,9 +689,7 @@ export default function BotPage() {
               />
             </div>
             <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Drawdown máximo (%)
-              </label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Drawdown máximo (%)</label>
               <input
                 type="number" step="0.1" min="0" value={maxDrawdownPct}
                 onChange={(e) => setMaxDrawdownPct(parseFloat(e.target.value) || 0)}
@@ -651,6 +698,7 @@ export default function BotPage() {
               />
             </div>
           </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={saveConfig}
@@ -662,6 +710,83 @@ export default function BotPage() {
             </button>
             {configSaved && <span className="text-sm" style={{ color: "var(--green)" }}>✓ Guardado</span>}
           </div>
+        </div>
+
+        {/* ── Fast mode ────────────────────────────────────────────────── */}
+        <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Rápida (Fast)</h3>
+            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
+              <input type="checkbox" checked={fastEnabled} onChange={(e) => setFastEnabled(e.target.checked)} />
+              Activo
+            </label>
+          </div>
+
+          <div className="mb-4 p-3 rounded-lg text-xs leading-relaxed" style={{ background: "rgba(255,71,87,0.06)", border: "1px solid rgba(255,71,87,0.25)", color: "var(--text-muted)" }}>
+            <p className="font-semibold mb-1" style={{ color: "var(--red)" }}>Advertencias antes de activar</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li>Umbral de entrada débil — entra también con TENDENCIA ALCISTA/BAJISTA, no solo señal FUERTE.</li>
+              <li>Sin evidencia hasta pasar el backtest automático (se corre al intentar activar).</li>
+              <li>Más trades = más costo de spread relativo al riesgo por operación.</li>
+              <li>Kill switch compartido con Trend y Mean Reversion a nivel de cuenta.</li>
+              <li>Timeframe corto (M5 por defecto) tiene más ruido que M15.</li>
+            </ul>
+          </div>
+
+          {gateFailure && (
+            <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: "rgba(255,71,87,0.1)", border: "1px solid var(--red)", color: "var(--red)" }}>
+              <p className="font-semibold mb-1">No se pudo activar el modo &quot;{gateFailure.mode}&quot; — backtest no lo respalda</p>
+              {gateFailure.failures.map((f) => (
+                <p key={f.symbol ?? "none"}>
+                  {f.symbol ?? "—"}: {f.error ?? `profit factor ${f.profit_factor ?? "—"}`}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Símbolos ({fastSymbols.length} seleccionados)
+            </label>
+            <button
+              type="button"
+              onClick={applyFastPreset}
+              className="text-xs font-semibold cursor-pointer px-2 py-1 rounded-md"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--blue)" }}
+            >
+              Aplicar preset
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {availableSymbols.map((sym) => {
+              const active = fastSymbols.includes(sym);
+              return (
+                <button
+                  key={sym}
+                  type="button"
+                  onClick={() => toggleSymbolIn(setFastSymbols, sym)}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer active:scale-[0.97] transition-[transform,opacity] duration-150"
+                  style={
+                    active
+                      ? { background: "rgba(61,124,255,0.15)", border: "1px solid var(--blue)", color: "var(--blue)" }
+                      : { background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-muted)" }
+                  }
+                >
+                  {active ? "✓ " : ""}{sym}
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Fast)</label>
+          <select
+            value={fastTimeframe}
+            onChange={(e) => setFastTimeframe(e.target.value)}
+            className="w-full md:w-48 px-3 py-2 rounded-lg text-sm"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+          >
+            {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
+          </select>
         </div>
       </section>
 
