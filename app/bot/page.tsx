@@ -16,6 +16,8 @@ interface BotStatus {
   current_balance: number | null;
   current_equity: number | null;
   current_profit: number | null;
+  realized_profit_today: number;
+  realized_profit_total: number;
   symbols: string[];
   timeframe: string;
 }
@@ -633,6 +635,16 @@ export default function BotPage() {
                 label: "Profit flotante",
                 value: status.current_profit === null ? "—" : `${status.current_profit >= 0 ? "+" : ""}$${fmt(status.current_profit)}`,
                 color: (status.current_profit ?? 0) >= 0 ? "var(--green)" : "var(--red)",
+              },
+              {
+                label: "Ganancia realizada hoy",
+                value: `${status.realized_profit_today >= 0 ? "+" : ""}$${fmt(status.realized_profit_today)}`,
+                color: status.realized_profit_today >= 0 ? "var(--green)" : "var(--red)",
+              },
+              {
+                label: "Ganancia realizada total",
+                value: `${status.realized_profit_total >= 0 ? "+" : ""}$${fmt(status.realized_profit_total)}`,
+                color: status.realized_profit_total >= 0 ? "var(--green)" : "var(--red)",
               },
               { label: "Timeframe", value: status.timeframe, color: "var(--blue)" },
             ].map(({ label, value, color }) => (
