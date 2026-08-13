@@ -36,6 +36,18 @@ interface BotConfig {
   trailing_trigger_pct: number;
   trailing_distance_atr: number;
   trading_capital: number | null;
+  ml_filter_trend_enabled: boolean;
+  ml_filter_fast_enabled: boolean;
+  ml_filter_min_confidence: number;
+}
+
+interface MlModelStatus {
+  mode: string;
+  n_trades: number;
+  profit_factor_filtered: number | null;
+  profit_factor_unfiltered: number | null;
+  enabled: number;
+  trained_at: string;
 }
 
 interface GateFailure {
@@ -321,6 +333,11 @@ export default function BotPage() {
   const [trailingDistanceAtr, setTrailingDistanceAtr] = useState(1);
   const [closingTicket, setClosingTicket] = useState<number | null>(null);
   const [tradingCapital, setTradingCapital] = useState(0);
+  const [mlFilterTrendEnabled, setMlFilterTrendEnabled] = useState(false);
+  const [mlFilterFastEnabled, setMlFilterFastEnabled] = useState(false);
+  const [mlMinConfidence, setMlMinConfidence] = useState(50);
+  const [mlModels, setMlModels] = useState<{ trend: MlModelStatus | null; fast: MlModelStatus | null }>({ trend: null, fast: null });
+  const [mlTraining, setMlTraining] = useState(false);
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null);
   const [showPositionsDetailModal, setShowPositionsDetailModal] = useState(false);
   const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
@@ -355,6 +372,16 @@ export default function BotPage() {
       setTrailingTriggerPct(Math.round(data.trailing_trigger_pct * 1000) / 10);
       setTradingCapital(data.trading_capital ?? 0);
       setTrailingDistanceAtr(data.trailing_distance_atr);
+      setMlFilterTrendEnabled(data.ml_filter_trend_enabled);
+      setMlFilterFastEnabled(data.ml_filter_fast_enabled);
+      setMlMinConfidence(Math.round(data.ml_filter_min_confidence * 100));
+    } catch {}
+  }
+
+  async function fetchMlModels() {
+    try {
+      const { data } = await api.get<{ trend: MlModelStatus | null; fast: MlModelStatus | null }>("/api/ml/models");
+      setMlModels(data);
     } catch {}
   }
 
@@ -387,6 +414,7 @@ export default function BotPage() {
   useEffect(() => {
     fetchStatus();
     fetchConfig();
+    fetchMlModels();
     fetchAvailableSymbols();
     const interval = setInterval(fetchStatus, 10_000);
     return () => clearInterval(interval);
@@ -446,6 +474,9 @@ export default function BotPage() {
         trailing_trigger_pct: trailingTriggerPct / 100,
         trading_capital: tradingCapital,
         trailing_distance_atr: trailingDistanceAtr,
+        ml_filter_trend_enabled: mlFilterTrendEnabled,
+        ml_filter_fast_enabled: mlFilterFastEnabled,
+        ml_filter_min_confidence: mlMinConfidence / 100,
       });
       setBotConfig(data);
       setConfigSaved(true);
@@ -459,6 +490,16 @@ export default function BotPage() {
       }
     } finally {
       setConfigLoading(false);
+    }
+  }
+
+  async function trainMlModels() {
+    setMlTraining(true);
+    try {
+      await api.post("/api/ml/train");
+      await fetchMlModels();
+    } finally {
+      setMlTraining(false);
     }
   }
 
@@ -1015,6 +1056,55 @@ export default function BotPage() {
           >
             {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
           </select>
+        </div>
+
+        <div className="rounded-xl p-5 mt-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Filtro de entrada ML (experimental)</h3>
+            <button
+              type="button"
+              onClick={trainMlModels}
+              disabled={mlTraining}
+              className="text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md disabled:opacity-40"
+              style={{ background: "var(--blue)", color: "#fff", border: "none" }}
+            >
+              {mlTraining ? "Entrenando…" : "Entrenar"}
+            </button>
+          </div>
+
+          <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+            Solo veta entradas que las reglas ya iban a tomar — nunca abre algo que Trend/Fast no habrían abierto.
+            Si nunca entrenaste o el modelo no mejora el resultado, no filtra nada.
+          </p>
+
+          {(["trend", "fast"] as const).map((mode) => {
+            const model = mlModels[mode];
+            const enabled = mode === "trend" ? mlFilterTrendEnabled : mlFilterFastEnabled;
+            const setEnabled = mode === "trend" ? setMlFilterTrendEnabled : setMlFilterFastEnabled;
+            return (
+              <div key={mode} className="flex items-center justify-between mb-2 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer" style={{ color: "var(--text-muted)" }}>
+                  <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                  Activar en {mode === "trend" ? "Trend" : "Fast"}
+                </label>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {model
+                    ? `Entrenado ${new Date(model.trained_at).toLocaleDateString("es-ES")} · ${model.n_trades} trades · PF ${model.profit_factor_filtered ?? "—"} vs ${model.profit_factor_unfiltered ?? "—"} sin filtro`
+                    : "Nunca entrenado"}
+                </span>
+              </div>
+            );
+          })}
+
+          <div className="mt-3">
+            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Confianza mínima (%)</label>
+            <input
+              type="number" step="1" min="0" max="100" value={mlMinConfidence}
+              onChange={(e) => setMlMinConfidence(parseFloat(e.target.value) || 0)}
+              className="w-full md:w-48 px-3 py-2 rounded-lg text-sm"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-3 mt-4">
