@@ -338,6 +338,8 @@ export default function BotPage() {
   const [mlMinConfidence, setMlMinConfidence] = useState(50);
   const [mlModels, setMlModels] = useState<{ trend: MlModelStatus | null; fast: MlModelStatus | null }>({ trend: null, fast: null });
   const [mlTraining, setMlTraining] = useState(false);
+  const [mlTrainResult, setMlTrainResult] = useState<Record<string, { trained: boolean; n_trades?: number; error?: string; profit_factor_filtered?: number | null; profit_factor_unfiltered?: number | null }> | null>(null);
+  const [mlTrainError, setMlTrainError] = useState<string | null>(null);
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null);
   const [showPositionsDetailModal, setShowPositionsDetailModal] = useState(false);
   const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
@@ -495,9 +497,13 @@ export default function BotPage() {
 
   async function trainMlModels() {
     setMlTraining(true);
+    setMlTrainError(null);
     try {
-      await api.post("/api/ml/train");
+      const { data } = await api.post("/api/ml/train");
+      setMlTrainResult(data);
       await fetchMlModels();
+    } catch {
+      setMlTrainError("No se pudo entrenar — revisá la conexión con el backend.");
     } finally {
       setMlTraining(false);
     }
@@ -1088,13 +1094,22 @@ export default function BotPage() {
                   Activar en {mode === "trend" ? "Trend" : "Fast"}
                 </label>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {model
+                  {model && model.enabled
                     ? `Entrenado ${new Date(model.trained_at).toLocaleDateString("es-ES")} · ${model.n_trades} trades · PF ${model.profit_factor_filtered ?? "—"} vs ${model.profit_factor_unfiltered ?? "—"} sin filtro`
                     : "Nunca entrenado"}
                 </span>
+                {mlTrainResult?.[mode] && (
+                  <p className="text-xs mt-1" style={{ color: mlTrainResult[mode].trained ? "var(--green)" : "var(--text-muted)" }}>
+                    {mlTrainResult[mode].trained
+                      ? "Último entrenamiento: mejoró el resultado, activo."
+                      : mlTrainResult[mode].error ?? "Último entrenamiento: no mejoró el resultado sin filtro, no se activó."}
+                  </p>
+                )}
               </div>
             );
           })}
+
+          {mlTrainError && <p className="text-xs mt-2" style={{ color: "var(--red)" }}>{mlTrainError}</p>}
 
           <div className="mt-3">
             <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Confianza mínima (%)</label>
