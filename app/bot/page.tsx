@@ -289,6 +289,20 @@ function PositionsDetailModal({
                 <div className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                   Ticket {p.ticket} · {p.volume} lotes · Entrada {p.open_price} · SL {p.sl} · TP {p.tp} · Margen ${p.margin ?? "—"}
                 </div>
+                <div className="text-xs mt-1" style={{ color: p.ml_confidence != null ? "var(--blue)" : "var(--text-muted)" }}>
+                  {(() => {
+                    if (p.ml_confidence != null) {
+                      return `Filtro ML: aprobada con ${(p.ml_confidence * 100).toFixed(0)}% de confianza`;
+                    }
+                    if (p.mode !== "trend" && p.mode !== "fast") {
+                      return "Filtro ML: no aplica a este modo";
+                    }
+                    const mlEnabled = p.mode === "trend" ? config?.ml_filter_trend_enabled : config?.ml_filter_fast_enabled;
+                    return mlEnabled
+                      ? "Filtro ML: activo, pero sin modelo entrenado todavía (no aplicado)"
+                      : "Filtro ML: desactivado para este modo";
+                  })()}
+                </div>
               </div>
             ))}
           </div>
@@ -897,92 +911,108 @@ export default function BotPage() {
             </div>
           ))}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Trend / Mean Reversion)</label>
-              <select
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              >
-                {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
-              </select>
+          <div className="mb-4">
+            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Trend / Mean Reversion)</label>
+            <select
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value)}
+              className="w-full md:w-48 px-3 py-2 rounded-lg text-sm"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            >
+              {TIMEFRAMES.map((tf) => <option key={tf} value={tf}>{tf}</option>)}
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Capital y riesgo</p>
+            <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+              Cuánto capital arriesgás por operación y cuándo el bot se frena solo por pérdidas acumuladas.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Capital de trading ($, opcional)
+                </label>
+                <input
+                  type="number" step="1" min="0" value={tradingCapital}
+                  placeholder="0 = usa el balance real de la cuenta"
+                  onChange={(e) => setTradingCapital(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+                <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                  El % de riesgo se calcula sobre este número, no sobre el balance real de MT5. Ej: $20 y 1% riesgo → arriesga $0.20 por operación.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Riesgo por operación (%)</label>
+                <input
+                  type="number" step="0.1" min="0" value={riskPct}
+                  onChange={(e) => setRiskPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Límite de pérdida diaria (%)</label>
+                <input
+                  type="number" step="0.1" min="0" value={dailyLossPct}
+                  onChange={(e) => setDailyLossPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Drawdown máximo (%)</label>
+                <input
+                  type="number" step="0.1" min="0" value={maxDrawdownPct}
+                  onChange={(e) => setMaxDrawdownPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Riesgo por operación (%)</label>
-              <input
-                type="number" step="0.1" min="0" value={riskPct}
-                onChange={(e) => setRiskPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Capital de trading ($, opcional)
-              </label>
-              <input
-                type="number" step="1" min="0" value={tradingCapital}
-                placeholder="0 = usa el balance real de la cuenta"
-                onChange={(e) => setTradingCapital(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-              <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-                El % de riesgo se calcula sobre este número, no sobre el balance real de MT5. Ej: $20 y 1% riesgo → arriesga $0.20 por operación.
-              </p>
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Límite de pérdida diaria (%)</label>
-              <input
-                type="number" step="0.1" min="0" value={dailyLossPct}
-                onChange={(e) => setDailyLossPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Drawdown máximo (%)</label>
-              <input
-                type="number" step="0.1" min="0" value={maxDrawdownPct}
-                onChange={(e) => setMaxDrawdownPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Cierre forzado si cae (% del precio de compra)
-              </label>
-              <input
-                type="number" step="0.1" min="0" value={maxLossPct}
-                onChange={(e) => setMaxLossPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Activar trailing SL al recorrer (% del camino hacia el TP)
-              </label>
-              <input
-                type="number" step="1" min="0" max="100" value={trailingTriggerPct}
-                onChange={(e) => setTrailingTriggerPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Distancia del SL al precio (x ATR) mientras sigue ganancia
-              </label>
-              <input
-                type="number" step="0.1" min="0" value={trailingDistanceAtr}
-                onChange={(e) => setTrailingDistanceAtr(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Stop Loss y Trailing</p>
+            <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+              Cuándo cortar una operación por las malas, y cuándo empezar a asegurar ganancia mientras sigue abierta.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Cierre forzado si cae (% del precio de compra)
+                </label>
+                <input
+                  type="number" step="0.1" min="0" value={maxLossPct}
+                  onChange={(e) => setMaxLossPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Activar trailing SL al recorrer (% del camino hacia el TP)
+                </label>
+                <input
+                  type="number" step="1" min="0" max="100" value={trailingTriggerPct}
+                  onChange={(e) => setTrailingTriggerPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                  Distancia del SL al precio (x ATR) mientras sigue ganancia
+                </label>
+                <input
+                  type="number" step="0.1" min="0" value={trailingDistanceAtr}
+                  onChange={(e) => setTrailingDistanceAtr(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
             </div>
           </div>
         </div>

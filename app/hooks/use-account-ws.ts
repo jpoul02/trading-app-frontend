@@ -12,6 +12,7 @@ export interface WsPosition {
   current_price: number;
   sl: number;
   sl_original: number | null;
+  ml_confidence: number | null;
   tp: number;
   profit: number;
   margin: number | null;
