@@ -1071,9 +1071,15 @@ export default function BotPage() {
               type="button"
               onClick={trainMlModels}
               disabled={mlTraining}
-              className="text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md disabled:opacity-40"
+              className="text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-md disabled:opacity-40 flex items-center gap-2"
               style={{ background: "var(--blue)", color: "#fff", border: "none" }}
             >
+              {mlTraining && (
+                <span
+                  className="inline-block rounded-full animate-spin"
+                  style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff" }}
+                />
+              )}
               {mlTraining ? "Entrenando…" : "Entrenar"}
             </button>
           </div>
@@ -1082,6 +1088,16 @@ export default function BotPage() {
             Solo veta entradas que las reglas ya iban a tomar — nunca abre algo que Trend/Fast no habrían abierto.
             Si nunca entrenaste o el modelo no mejora el resultado, no filtra nada.
           </p>
+
+          {mlTraining && (
+            <div className="mb-3 p-3 rounded-lg text-xs flex items-center gap-2" style={{ background: "var(--bg-secondary)", color: "var(--text-muted)" }}>
+              <span
+                className="inline-block rounded-full animate-spin shrink-0"
+                style={{ width: 14, height: 14, border: "2px solid var(--border)", borderTopColor: "var(--blue)" }}
+              />
+              Re-corriendo 2 años de backtest para Trend y Fast — puede tardar varios minutos, no cierres la página.
+            </div>
+          )}
 
           {(["trend", "fast"] as const).map((mode) => {
             const model = mlModels[mode];
