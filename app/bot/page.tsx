@@ -42,6 +42,10 @@ interface BotConfig {
   ml_filter_fast_enabled: boolean;
   ml_filter_min_confidence: number;
   max_open_positions: number;
+  weekend_protection: boolean;
+  friday_block_entries_from_utc: number;
+  friday_close_positions_at_utc: number;
+  commission_per_lot: number;
 }
 
 interface MlModelStatus {
@@ -99,7 +103,7 @@ const GLOSSARY = [
     term: "Señal fuerte (COMPRAR/VENDER FUERTE)",
     short: "El bot solo abre operación con estas dos señales, ninguna otra.",
     detail:
-      "El bot calcula RSI y MACD en cada vela cerrada. Solo abre posición cuando la combinación da \"COMPRAR FUERTE\" o \"VENDER FUERTE\" — señales intermedias como \"TENDENCIA ALCISTA/BAJISTA\" o \"ESPERAR\" no disparan ninguna acción. Por diseño: mejor perderse una entrada dudosa que abrir con poca convicción.",
+      "El bot calcula RSI y MACD en cada vela cerrada. Trend y Mean Reversion solo abren posición con \"COMPRAR FUERTE\" o \"VENDER FUERTE\" — lecturas intermedias como \"RSI BAJO/ALTO\" o \"ESPERAR\" no disparan ninguna acción. El modo Reversión RSI (clave 'fast') sí entra con RSI BAJO/ALTO, y por eso está desactivado por defecto.",
   },
   {
     key: "risk_pct",
@@ -195,7 +199,7 @@ function ResetKillSwitchModal({ onConfirm, onCancel }: Readonly<{ onConfirm: () 
 }
 
 const MODE_LABELS: Record<string, string> = {
-  trend: "Trend", mean_reversion: "Mean Rev", fast: "Fast", manual: "Manual",
+  trend: "Trend", mean_reversion: "Mean Rev", fast: "RSI Rev", manual: "Manual",
 };
 
 function PositionsDetailModal({
@@ -249,7 +253,7 @@ function PositionsDetailModal({
               <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{config.timeframe}</p>
             </div>
             <div>
-              <p style={{ color: "var(--text-muted)" }}>Timeframe Fast</p>
+              <p style={{ color: "var(--text-muted)" }}>Timeframe Reversión RSI</p>
               <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{config.fast_timeframe}</p>
             </div>
             <div>
@@ -267,7 +271,7 @@ function PositionsDetailModal({
             <div>
               <p style={{ color: "var(--text-muted)" }}>Modos activos</p>
               <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                {[config.trend_enabled && "Trend", config.mean_reversion_enabled && "Mean Rev", config.fast_enabled && "Fast"].filter(Boolean).join(", ") || "Ninguno"}
+                {[config.trend_enabled && "Trend", config.mean_reversion_enabled && "Mean Rev", config.fast_enabled && "RSI Rev"].filter(Boolean).join(", ") || "Ninguno"}
               </p>
             </div>
           </div>
@@ -346,7 +350,11 @@ export default function BotPage() {
   const [configSaved, setConfigSaved] = useState(false);
   const [gateFailure, setGateFailure] = useState<{ mode: string; failures: GateFailure[] } | null>(null);
   const [openItem, setOpenItem] = useState<string | null>(null);
-  const [maxLossPct, setMaxLossPct] = useState(1);
+  const [maxLossPct, setMaxLossPct] = useState(2);
+  const [weekendProtection, setWeekendProtection] = useState(true);
+  const [fridayBlockFrom, setFridayBlockFrom] = useState(18);
+  const [fridayCloseAt, setFridayCloseAt] = useState(20);
+  const [commissionPerLot, setCommissionPerLot] = useState(0);
   const [trailingTriggerPct, setTrailingTriggerPct] = useState(30);
   const [trailingDistanceAtr, setTrailingDistanceAtr] = useState(1);
   const [closingTicket, setClosingTicket] = useState<number | null>(null);
@@ -390,6 +398,10 @@ export default function BotPage() {
       setMeanReversionEnabled(data.mean_reversion_enabled);
       setFastEnabled(data.fast_enabled);
       setMaxLossPct(Math.round(data.max_loss_pct * 1000) / 10);
+      setWeekendProtection(data.weekend_protection ?? true);
+      setFridayBlockFrom(data.friday_block_entries_from_utc ?? 18);
+      setFridayCloseAt(data.friday_close_positions_at_utc ?? 20);
+      setCommissionPerLot(data.commission_per_lot ?? 0);
       setTrailingTriggerPct(Math.round(data.trailing_trigger_pct * 1000) / 10);
       setTradingCapital(data.trading_capital ?? 0);
       setTrailingDistanceAtr(data.trailing_distance_atr);
@@ -493,6 +505,10 @@ export default function BotPage() {
         mean_reversion_enabled: meanReversionEnabled,
         fast_enabled: fastEnabled,
         max_loss_pct: maxLossPct / 100,
+        weekend_protection: weekendProtection,
+        friday_block_entries_from_utc: fridayBlockFrom,
+        friday_close_positions_at_utc: fridayCloseAt,
+        commission_per_lot: commissionPerLot,
         trailing_trigger_pct: trailingTriggerPct / 100,
         trading_capital: tradingCapital,
         trailing_distance_atr: trailingDistanceAtr,
@@ -1007,7 +1023,7 @@ export default function BotPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                  Cierre forzado si cae (% del precio de compra)
+                  Cierre forzado si la posición pierde (% del capital, en dinero)
                 </label>
                 <input
                   type="number" step="0.1" min="0" value={maxLossPct}
@@ -1040,12 +1056,52 @@ export default function BotPage() {
               </div>
             </div>
           </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Fin de semana y costos</p>
+            <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+              Un stop no protege contra un gap: el lunes puede abrir muy por debajo del stop y ejecutarse ahí. La única protección real es no tener posiciones abiertas el fin de semana.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex items-center gap-2 text-xs cursor-pointer md:col-span-2" style={{ color: "var(--text-muted)" }}>
+                <input type="checkbox" checked={weekendProtection} onChange={(e) => setWeekendProtection(e.target.checked)} />
+                Protección de fin de semana (bloquear entradas y cerrar posiciones el viernes)
+              </label>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Viernes: no abrir nuevas desde (hora UTC)</label>
+                <input
+                  type="number" step="0.5" min="0" max="24" value={fridayBlockFrom}
+                  onChange={(e) => setFridayBlockFrom(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Viernes: cerrar todo a las (hora UTC)</label>
+                <input
+                  type="number" step="0.5" min="0" max="24" value={fridayCloseAt}
+                  onChange={(e) => setFridayCloseAt(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Comisión ida y vuelta por lote (moneda de la cuenta)</label>
+                <input
+                  type="number" step="0.5" min="0" value={commissionPerLot}
+                  onChange={(e) => setCommissionPerLot(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── Fast mode ────────────────────────────────────────────────── */}
         <div className="rounded-xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Rápida (Fast)</h3>
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Reversión RSI en timeframe corto (clave: fast)</h3>
             <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
               <input type="checkbox" checked={fastEnabled} onChange={(e) => setFastEnabled(e.target.checked)} />
               Activo
@@ -1055,8 +1111,9 @@ export default function BotPage() {
           <div className="mb-4 p-3 rounded-lg text-xs leading-relaxed" style={{ background: "rgba(255,71,87,0.06)", border: "1px solid rgba(255,71,87,0.25)", color: "var(--text-muted)" }}>
             <p className="font-semibold mb-1" style={{ color: "var(--red)" }}>Advertencias antes de activar</p>
             <ul className="list-disc pl-4 space-y-0.5">
-              <li>Umbral de entrada débil — entra también con TENDENCIA ALCISTA/BAJISTA, no solo señal FUERTE.</li>
-              <li>Sin evidencia hasta pasar el backtest automático (se corre al intentar activar).</li>
+              <li>En una frase: compra cuando el RSI está por debajo de 45 y vende cuando está por encima de 55, apostando a que vuelve al medio. Es reversión a la media, NO seguimiento de tendencia (antes se llamaba &quot;Fast&quot; y sus señales &quot;TENDENCIA ALCISTA/BAJISTA&quot;, que era engañoso).</li>
+              <li>Dispara en ~40 % de las velas: el spread y la comisión pesan más aquí que en cualquier otro modo.</li>
+              <li>Sin evidencia hasta pasar el gate (≥100 trades, PF ≥ 1.3 con costos, DD ≤ 15 %, 3 ventanas rentables). Se corre al intentar activar.</li>
               <li>Más trades = más costo de spread relativo al riesgo por operación.</li>
               <li>Kill switch compartido con Trend y Mean Reversion a nivel de cuenta.</li>
               <li>Timeframe corto (M5 por defecto) tiene más ruido que M15.</li>
@@ -1108,7 +1165,7 @@ export default function BotPage() {
             })}
           </div>
 
-          <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Fast)</label>
+          <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Timeframe (Reversión RSI)</label>
           <select
             value={fastTimeframe}
             onChange={(e) => setFastTimeframe(e.target.value)}
@@ -1140,7 +1197,7 @@ export default function BotPage() {
           </div>
 
           <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-            Solo veta entradas que las reglas ya iban a tomar — nunca abre algo que Trend/Fast no habrían abierto.
+            Solo veta entradas que las reglas ya iban a tomar — nunca abre algo que Trend/Reversión RSI no habrían abierto.
             Si nunca entrenaste o el modelo no mejora el resultado, no filtra nada.
           </p>
 
@@ -1150,7 +1207,7 @@ export default function BotPage() {
                 className="inline-block rounded-full animate-spin shrink-0"
                 style={{ width: 14, height: 14, border: "2px solid var(--border)", borderTopColor: "var(--blue)" }}
               />
-              Re-corriendo 2 años de backtest para Trend y Fast — puede tardar varios minutos, no cierres la página.
+              Re-corriendo 2 años de backtest para Trend y Reversión RSI — puede tardar varios minutos, no cierres la página.
             </div>
           )}
 
@@ -1162,7 +1219,7 @@ export default function BotPage() {
               <div key={mode} className="flex items-center justify-between mb-2 text-sm">
                 <label className="flex items-center gap-2 cursor-pointer" style={{ color: "var(--text-muted)" }}>
                   <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-                  Activar en {mode === "trend" ? "Trend" : "Fast"}
+                  Activar en {mode === "trend" ? "Trend" : "Reversión RSI"}
                 </label>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                   {model && model.enabled
@@ -1253,7 +1310,7 @@ export default function BotPage() {
                             color: t.mode === "mean_reversion" ? "var(--blue)" : t.mode === "fast" ? "var(--green)" : "var(--text-muted)",
                           }}
                         >
-                          {t.mode === "mean_reversion" ? "Mean Rev" : t.mode === "fast" ? "Fast" : "Trend"}
+                          {t.mode === "mean_reversion" ? "Mean Rev" : t.mode === "fast" ? "RSI Rev" : "Trend"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">

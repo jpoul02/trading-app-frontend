@@ -35,6 +35,17 @@ const STRATEGIES = [
     exit: "Stop Loss = entrada ∓ 1.5×ATR. Take Profit = banda media de Bollinger.",
     bestIn: "Mercados laterales / consolidación. Más oportunidades que Trend, porque el forex está así la mayor parte del tiempo.",
   },
+  {
+    key: "fast",
+    icon: RefreshCw,
+    name: "Reversión RSI corta",
+    subtitle: "RSI en M5 · clave interna \"fast\" · desactivada por defecto",
+    color: "var(--yellow, #f5a623)",
+    what: "En una frase: compra cuando el RSI está por debajo de 45 y vende cuando está por encima de 55, apostando a que el precio vuelve al medio. Es reversión a la media con un umbral flojo — NO seguimiento de tendencia, aunque antes se llamara \"Fast\" y sus señales \"TENDENCIA ALCISTA/BAJISTA\".",
+    entry: "RSI < 45 → RSI BAJO (compra). RSI > 55 → RSI ALTO (venta). También acepta las señales FUERTES. Dispara en ~40 % de las velas.",
+    exit: "Stop Loss = entrada ∓ 1.5×ATR. Take Profit = entrada ± 2.5×ATR.",
+    bestIn: "Sin evidencia todavía. Por su frecuencia, el spread y la comisión pesan más que en cualquier otro modo. Solo se puede activar si pasa el gate (≥100 trades, PF ≥ 1.3 con costos, DD ≤ 15 %, 3 ventanas rentables). Regla: no se opera una estrategia que no se puede describir en una frase — esta ya se puede; falta que los números la respalden.",
+  },
 ];
 
 const GLOSSARY = [
@@ -116,9 +127,9 @@ export default function EstrategiasPage() {
       {/* ── Strategy cards ───────────────────────────────────────────────── */}
       <section className="mb-10">
         <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-          Las dos estrategias
+          Las tres estrategias
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {STRATEGIES.map((s) => {
             const Icon = s.icon;
             return (

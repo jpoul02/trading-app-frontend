@@ -63,7 +63,7 @@ interface Candle {
 }
 
 interface IndicatorData {
-  signal: "COMPRAR FUERTE" | "TENDENCIA ALCISTA" | "VENDER FUERTE" | "TENDENCIA BAJISTA" | "ESPERAR";
+  signal: "COMPRAR FUERTE" | "RSI BAJO" | "VENDER FUERTE" | "RSI ALTO" | "ESPERAR";
   signal_reason: string;
   last_rsi: number;
   last_macd: number | null;
@@ -1217,9 +1217,9 @@ export default function MT5Page() {
           {!indicatorsLoading && indicators && !indicators.error && (() => {
             const SIG_MAP: Record<string, { color: string; bg: string; border: string; arrow: string }> = {
               "COMPRAR FUERTE":   { color: "#00d4aa", bg: "rgba(0,212,170,0.14)",  border: "rgba(0,212,170,0.45)",  arrow: "↑↑" },
-              "TENDENCIA ALCISTA":{ color: "#00d4aa", bg: "rgba(0,212,170,0.06)",  border: "rgba(0,212,170,0.22)",  arrow: "↑"  },
+              "RSI BAJO":         { color: "#00d4aa", bg: "rgba(0,212,170,0.06)",  border: "rgba(0,212,170,0.22)",  arrow: "↑"  },
               "VENDER FUERTE":    { color: "#ff4757", bg: "rgba(255,71,87,0.14)",  border: "rgba(255,71,87,0.45)",  arrow: "↓↓" },
-              "TENDENCIA BAJISTA":{ color: "#f5a623", bg: "rgba(245,166,35,0.12)", border: "rgba(245,166,35,0.38)", arrow: "↓"  },
+              "RSI ALTO":         { color: "#f5a623", bg: "rgba(245,166,35,0.12)", border: "rgba(245,166,35,0.38)", arrow: "↓"  },
               "ESPERAR":          { color: "#94a3b8", bg: "rgba(148,163,184,0.08)",border: "rgba(148,163,184,0.3)", arrow: "—"  },
             };
             const sig = SIG_MAP[indicators.signal] ?? SIG_MAP["ESPERAR"];

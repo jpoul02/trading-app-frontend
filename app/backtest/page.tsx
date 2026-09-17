@@ -256,7 +256,7 @@ export default function BacktestPage() {
               <option value="both">Comparar Trend y Mean Reversion</option>
               <option value="trend">Trend</option>
               <option value="mean_reversion">Mean Reversion</option>
-              <option value="fast">Fast (scalping)</option>
+              <option value="fast">Reversión RSI corta (clave: fast)</option>
             </select>
           </div>
           <div>
