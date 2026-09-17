@@ -41,6 +41,7 @@ interface BotConfig {
   ml_filter_trend_enabled: boolean;
   ml_filter_fast_enabled: boolean;
   ml_filter_min_confidence: number;
+  max_open_positions: number;
 }
 
 interface MlModelStatus {
@@ -337,6 +338,7 @@ export default function BotPage() {
   const [riskPct, setRiskPct] = useState(1);
   const [dailyLossPct, setDailyLossPct] = useState(3);
   const [maxDrawdownPct, setMaxDrawdownPct] = useState(10);
+  const [maxOpenPositions, setMaxOpenPositions] = useState(3);
   const [trendEnabled, setTrendEnabled] = useState(true);
   const [meanReversionEnabled, setMeanReversionEnabled] = useState(true);
   const [fastEnabled, setFastEnabled] = useState(false);
@@ -383,6 +385,7 @@ export default function BotPage() {
       setRiskPct(Math.round(data.risk_pct * 1000) / 10);
       setDailyLossPct(Math.round(data.daily_loss_limit_pct * 1000) / 10);
       setMaxDrawdownPct(Math.round(data.max_drawdown_pct * 1000) / 10);
+      setMaxOpenPositions(data.max_open_positions ?? 3);
       setTrendEnabled(data.trend_enabled);
       setMeanReversionEnabled(data.mean_reversion_enabled);
       setFastEnabled(data.fast_enabled);
@@ -485,6 +488,7 @@ export default function BotPage() {
         risk_pct: riskPct / 100,
         daily_loss_limit_pct: dailyLossPct / 100,
         max_drawdown_pct: maxDrawdownPct / 100,
+        max_open_positions: maxOpenPositions,
         trend_enabled: trendEnabled,
         mean_reversion_enabled: meanReversionEnabled,
         fast_enabled: fastEnabled,
@@ -979,6 +983,15 @@ export default function BotPage() {
                 <input
                   type="number" step="0.1" min="0" value={maxDrawdownPct}
                   onChange={(e) => setMaxDrawdownPct(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Máx. posiciones abiertas (todos los modos)</label>
+                <input
+                  type="number" step="1" min="0" value={maxOpenPositions}
+                  onChange={(e) => setMaxOpenPositions(parseInt(e.target.value, 10) || 0)}
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
                 />
